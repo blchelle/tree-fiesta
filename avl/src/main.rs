@@ -13,6 +13,7 @@ struct AVLNode<T> {
     right: AVLTree<T>,
 }
 
+#[derive(Debug)]
 enum RotationCase {
     Nil,
     LL,
@@ -47,7 +48,7 @@ impl<T: Ord+Copy> AVLNode<T> {
         println!("Insertion called..");
 
         if node.is_none() { // no node exist thus insert one here
-            println!("Node placed...");
+            println!("added node");
             return Self::new(data);
         }
 
@@ -57,42 +58,55 @@ impl<T: Ord+Copy> AVLNode<T> {
         {  // mutable block for changing height
             let mut cur = rc_node.borrow_mut();
 
-            if cur.key < data {
+            if data < cur.key {
+                println!("-> l");
                 cur.left = Self::insert(cur.left.clone(), data);
-            } else if cur.key > data {
+            } else if data > cur.key {
+                println!("-> r");
                 cur.right = Self::insert(cur.right.clone(), data);
             } else {
                 return node;
             }
 
-            cur.height += Self::height(cur.left.clone()).max(Self::height(cur.right.clone()));
+            cur.height = 1 + Self::height(cur.left.clone()).max(Self::height(cur.right.clone()));
             println!("height {}", cur.height);
 
             bal = Self::height(cur.left.clone()) - Self::height(cur.right.clone());
             println!("balance {}", bal);
 
-            // ll = 0
-            // rr = 1
-            // lr = 2
-            // rr = 3
-            let l = cur.left.clone()?;
-            let l_node = l.borrow();
-            let r = cur.right.clone()?;
-            let r_node = r.borrow();
+            let l_key;
+            let r_key;
+            match cur.left.clone() {
+                None => {
+                    l_key = data;
+                }
+                Some(l_node) => {
+                    l_key = l_node.borrow().key
+                }
+            }
+            match cur.right.clone() {
+                None => {
+                    r_key = data;
+                }
+                Some(r_node) => {
+                    r_key = r_node.borrow().key
+                }
+            }
 
-            if (bal > 1) && (data < l_node.key) {
+            if (bal > 1) && (data < l_key) {
                 rcase = RotationCase::LL;
-            } else if (bal < -1) && (data > r_node.key) {
+            } else if (bal < -1) && (data > r_key) {
                 rcase = RotationCase::RR;
-            } else if (bal > 1) && (data > l_node.key) {
+            } else if (bal > 1) && (data > l_key) {
                 rcase = RotationCase::LR;
-            } else if (bal < -1) && (data < r_node.key) {
+            } else if (bal < -1) && (data < r_key) {
                 rcase = RotationCase::RL;
             } else {
                 rcase = RotationCase::Nil;
             }
         }
 
+        println!("rcase {:?}", rcase);
         return match rcase {
             RotationCase::LL => {
                 Self::rightRotate(rc_node)
@@ -117,12 +131,13 @@ impl<T: Ord+Copy> AVLNode<T> {
     }
 
     fn rightRotate(node: Tree<T>) -> AVLTree<T> {
-        let mut cur = node.borrow_mut();
-        let l = cur.left.clone();
+        println!("RR");
+        let mut cur = node.borrow_mut(); // y
+        let l = cur.left.clone(); // x
         let l_unwrap = l.clone().unwrap();
-        let mut l_mut = l_unwrap.borrow_mut();
+        let mut l_mut = l_unwrap.borrow_mut(); //x
 
-        let lr = l_mut.right.clone();
+        let lr = l_mut.right.clone(); //t2
 
         // rotate
         l_mut.right = Some(node.clone());
@@ -130,26 +145,29 @@ impl<T: Ord+Copy> AVLNode<T> {
 
         // update height
         cur.height = 1 + Self::height(cur.left.clone()).max(Self::height(cur.right.clone()));
-        l_mut.height = 1 + Self::height(l_mut.left.clone()).max(Self::height(l_mut.right.clone()));
+        l_mut.height = 1 + Self::height(l_mut.left.clone()).max(cur.height);
 
         return l;
     }
 
     fn leftRotate(node: Tree<T>) -> AVLTree<T> {
-        let mut cur = node.borrow_mut();
-        let r = cur.right.clone();
+        println!("LR");
+        let mut cur = node.borrow_mut(); // x
+        let r = cur.right.clone(); // x .right (y)
         let r_unwrap = r.clone().unwrap();
-        let mut r_mut = r_unwrap.borrow_mut();
+        let mut r_mut = r_unwrap.borrow_mut(); // y
 
-        let rl = r_mut.left.clone();
+        let rl = r_mut.left.clone(); // t2
 
         // rotate
         r_mut.left = Some(node.clone());
         cur.right = rl;
 
         // update height
+        println!("updating heights");
         cur.height = 1 + Self::height(cur.left.clone()).max(Self::height(cur.right.clone()));
-        r_mut.height = 1 + Self::height(r_mut.left.clone()).max(Self::height(r_mut.right.clone()));
+        println!("updating heights");
+        r_mut.height = 1 + cur.height.max(Self::height(r_mut.right.clone()));
 
         return r;
     }
@@ -160,9 +178,15 @@ fn main() {
     println!("Hello, world!");
     let root = AVLNode::new(1);
     AVLNode::insert(root.clone(), 2);
+    println!("added 2");
     AVLNode::insert(root.clone(), 3);
+    println!("added 3");
     AVLNode::insert(root.clone(), 4);
     AVLNode::insert(root.clone(), 5);
+    AVLNode::insert(root.clone(), 6);
+    AVLNode::insert(root.clone(), 7);
+    AVLNode::insert(root.clone(), 8);
+
 
     // AVLNode::insert(root, 1);
 }
