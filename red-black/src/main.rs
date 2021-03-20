@@ -51,66 +51,48 @@ impl<T: Ord> RBTree<T> {
   fn insert(&mut self, key: T) {
     fn insert<T: Ord>(child: &mut Option<Rc<RefCell<TreeNode<T>>>>, mut insert_node: TreeNode<T>) {
       // let mut child = child1.as_ref();
-      // match child.as_ref() {
-      //   None => {},
-      //   Some(ref c) => {
-      //     if c.borrow().key == insert_node.key {
-      //       return;
-      //     }
+      match child.as_ref() {
+        None => {},
+        Some(ref c) => {
+          if c.borrow().key == insert_node.key {
+            return;
+          }
 
-      //     if c.borrow().key > insert_node.key {
-      //       match c.borrow().left {
-      //         None => {},
-      //         Some(ref cl) => {
-      //           insert(&mut Some(Rc::clone(cl)), insert_node)
-      //         }
-      //       }
-      //     } else {
-      //       match c.borrow().right {
-      //         None => {
+          if c.borrow().key > insert_node.key {
+            let mut c_mut = c.borrow_mut();
 
-      //           insert_node.parent = Some(Rc::downgrade(&Rc::clone(c)));
-      //           let x = Rc::new(RefCell::new(insert_node));
-      //           c.borrow_mut().right = Some(Rc::clone(&x));
-      //         },
-      //         Some(ref cl) => {
-      //           insert(&mut Some(Rc::clone(cl)), insert_node)
-      //         }
-      //       }
-      //     }
-      //   }
-      // }
+            match c_mut.left {
+              None => {
+                
+                insert_node.parent = Some(Rc::downgrade(&Rc::clone(c)));
+                let x = Rc::new(RefCell::new(insert_node));
+                c_mut.left = Some(Rc::clone(&x));
+                drop(c_mut);
+                check_property1(&mut Some(Rc::clone(&x)));
+              },
+              Some(ref cl) => {
+                insert(&mut Some(Rc::clone(cl)), insert_node)
+              }
+            }
+          } else {
+            let mut c_mut = c.borrow_mut();
 
+            match c_mut.right {
+              None => {
 
-
-      let child1 = child.as_ref().unwrap();
-
-      let mut child_node = child1.borrow_mut();
-      if child_node.key == insert_node.key {
-        return;
-      }
-
-      let leaf = if child_node.key > insert_node.key {
-        &mut child_node.left
-      } else {
-        &mut child_node.right
-      };
-
-      match leaf {
-        Some(_) => {
-          insert(leaf, insert_node);
-        },
-        None => {
-          insert_node.parent = Some(Rc::downgrade(&child1));
-          let x = Rc::new(RefCell::new(insert_node));
-          *leaf = Some(Rc::clone(&x));
-          // drop(child_node);
-         
-          check_property1(leaf);
-          
-        
+                insert_node.parent = Some(Rc::downgrade(&Rc::clone(c)));
+                let x = Rc::new(RefCell::new(insert_node));
+                c_mut.right = Some(Rc::clone(&x));
+                drop(c_mut);
+                check_property1(&mut Some(Rc::clone(&x)));
+              },
+              Some(ref cl) => {
+                insert(&mut Some(Rc::clone(cl)), insert_node)
+              }
+            }
+          }
         }
-      };
+      }
     }
 
     fn check_property1<T: Ord>(node: &mut Option<Rc<RefCell<TreeNode<T>>>>) {
@@ -132,6 +114,9 @@ impl<T: Ord> RBTree<T> {
             }
           }
         };
+        if parent.is_none() {
+          return;
+        }
         let grandparent : Option<Rc<RefCell<TreeNode<T>>>> = match parent {
           None => None,
           Some(ref gp) => match gp.borrow().parent {
@@ -142,6 +127,9 @@ impl<T: Ord> RBTree<T> {
             }
           }
         };
+        if grandparent.is_none() {
+          return;
+        }
 
         match parent {
           None => break,
