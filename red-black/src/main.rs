@@ -67,18 +67,24 @@ impl RBTree<u32> {
     if u_node.borrow().parent.is_none() {
       self.root = Some(Rc::clone(&node_left));
     } else {
+      let mut is_equal = false;
       match u_node.borrow().parent {
         None => panic!("Right rotation: this should never be None"),
         Some(ref up) => match up.upgrade() {
           None => panic!("Right rotation: this should never be None"),
-          Some(ref up) => match up.borrow().left {
-            None => panic!("Right rotation: this should never be None"),
-            Some(ref upl) => {
-              if u_node.borrow().key == upl.borrow().key {
-                up.borrow_mut().left = Some(Rc::clone(&node_left));
-              } else {
-                up.borrow_mut().right = Some(Rc::clone(&node_left));
+          Some(ref up) => {
+            match up.borrow().left {
+              None => panic!("Right rotation: this should never be None"),
+              Some(ref upl) => {
+                if u_node.borrow().key == upl.borrow().key {
+                  is_equal = true; 
+                }
               }
+            };
+            if is_equal {
+              up.borrow_mut().left = Some(Rc::clone(&node_left));
+            } else {
+              up.borrow_mut().right = Some(Rc::clone(&node_left));
             }
           }
         }
@@ -440,6 +446,141 @@ impl RBTree<u32> {
       }
     }
   }
+
+  fn delete(&mut self, key: u32) {
+    fn min_node(node: &Option<Rc<RefCell<TreeNode<u32>>>>) -> Option<Rc<RefCell<TreeNode<u32>>>> {
+      let mut temp = match node {
+        None => return None,
+        Some(ref n) => Some(Rc::clone(n))
+      };
+      loop {
+        let mut temp_left = match temp {
+          None => None,
+          Some(ref t) => match t.borrow().left {
+            None => None,
+            Some(ref tl) => Some(Rc::clone(tl))
+          }
+        };
+        if temp_left.is_none() {
+          break;
+        }
+        temp = temp_left;
+      }
+      return temp;
+    }
+    let mut node_to_delete = self.find(key);
+
+    let node_left = match node_to_delete {
+      None => return,
+      Some(ref n) => match n.borrow().left {
+        None => None,
+        Some(ref nl) => Some(Rc::clone(nl))
+      }
+    };
+    let node_right = match node_to_delete {
+      None => return,
+      Some(ref n) => match n.borrow().right {
+        None => None,
+        Some(ref nr) => Some(Rc::clone(nr))
+      }
+    };
+
+    if !node_left.is_none() && !node_right.is_none() {
+      let mut replace = min_node(&node_right);
+      let node_key = match node_to_delete {
+        None => return,
+        Some(ref nc) => nc.borrow().key
+      };
+      let root_key = match node_to_delete {
+        None => return,
+        Some(ref rc) => rc.borrow().key
+      };
+      if node_key == root_key {
+        self.root = match replace {
+          None => None,
+          Some(ref r) => Some(Rc::clone(r))
+        };
+      } else {
+        match node_to_delete {
+          None => return,
+          Some(ref n) => match n.borrow().parent {
+            None => return,
+            Some(ref np) => match np.upgrade() {
+              None => return,
+              Some(ref npu) => {
+                let node_parent_left_key = match Rc::clone(npu).borrow().left {
+                  None => return,
+                  Some(ref nplk) => nplk.borrow().key
+                };
+                if node_parent_left_key == node_key {
+                  npu.borrow_mut().left = match replace {
+                    None => None,
+                    Some(ref r) => Some(Rc::clone(r))
+                  };
+                } else {
+                  npu.borrow_mut().right = match replace {
+                    None => None,
+                    Some(ref r) => Some(Rc::clone(r))
+                  };
+                }
+              }
+            }
+          }
+        }
+      }
+
+      let mut child = match replace {
+        None => return, 
+        Some(ref r) => match r.borrow().right {
+          None => None,
+          Some(ref rr) => Some(Rc::clone(rr))
+        }
+      };
+      let mut parent = match replace {
+        None => return, 
+        Some(ref r) => match r.borrow().parent {
+          None => None,
+          Some(ref rr) => match rr.upgrade() {
+            None => return,
+            Some(ref rru) => Some(Rc::clone(rru))
+          }
+        }
+      };
+
+    }
+  }
+
+  fn find(&mut self, key: u32) -> Option<Rc<RefCell<TreeNode<u32>>>> {
+    fn recurse(node: &mut Option<Rc<RefCell<TreeNode<u32>>>>, key: u32) -> Option<Rc<RefCell<TreeNode<u32>>>>{
+      if node.is_none() {
+        return None;
+      }
+      match node {
+        None => return None,
+        Some(ref n) => {
+          let nkey = n.borrow().key;
+          if nkey == key {
+            return Some(Rc::clone(n))
+          } else if nkey > key {
+            match n.borrow().left {
+              None => return None,
+              Some(ref nl) => return recurse(&mut Some(Rc::clone(nl)), key)
+            };
+          } else {
+            match n.borrow().right {
+              None => return None,
+              Some(ref nr) => return recurse(&mut Some(Rc::clone(nr)), key)
+            };
+          }
+        }
+      };
+      
+    }
+    match self.root {
+      None => return None,
+      Some(ref r) => return recurse(&mut Some(Rc::clone(r)), key)
+    }
+  }
 }
 
 impl<T: Ord + Copy> TreeNode<T> {
@@ -462,15 +603,16 @@ fn main() {
   tree.insert(10);
   tree.insert(5);
   tree.insert(1);
-  tree.insert(2);
-  tree.insert(11);
-  tree.insert(9);
-  tree.insert(12);
-  tree.insert(14);
-  tree.insert(0);
-  tree.insert(3);
-  tree.insert(20);
+  tree.insert(7);
+  tree.insert(6);
+  // tree.insert(9);
+  // tree.insert(12);
+  // tree.insert(14);
+  // tree.insert(0);
+  // tree.insert(3);
+  // tree.insert(20);
 
 
   println!("{:#?}", tree);
+  // println!("{:#?}", tree.find(14));
 }
