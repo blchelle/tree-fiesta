@@ -1,5 +1,5 @@
-use std::cell::Ref;
 use std::cell::RefCell;
+use std::fmt::{Debug, Display};
 use std::rc::{Rc, Weak};
 
 #[derive(Clone, Debug, PartialEq)]
@@ -27,7 +27,10 @@ struct RBTree<T> {
     height: u64,
 }
 
-impl RBTree<u32> {
+impl<T> RBTree<T>
+where
+    T: Ord + Copy + Display + Debug,
+{
     fn new() -> Self {
         Self {
             root: None,
@@ -35,131 +38,205 @@ impl RBTree<u32> {
         }
     }
 
-    fn right_rotation1(&mut self, node: &mut Option<Rc<RefCell<TreeNode<u32>>>>) {
-        if let None = node {
-            println!("Rotation node in 'right_rotation' is None...");
-            return;
-        }
-        let u_node = match node {
-            None => return,
-            Some(ref n) => n,
+    fn right_rotation(&mut self, node: &mut Child<T>) {
+        let node = match node {
+            None => panic!("Rotation node in 'right_rotation' is None..."),
+            Some(ref node) => node,
         };
 
-        let node_left = match u_node.borrow().left {
+        // Step 1. Gets a reference to the left child of node
+        // Note that if we're performing a right-rotation, this shouldn't be None
+        let left_child = match node.borrow().left {
             None => panic!("Right rotation: this should never be None"),
-            Some(ref nl) => Rc::clone(nl),
+            Some(ref node_left) => Rc::clone(node_left),
         };
-        let left_right_child = match node_left.borrow().right {
+
+        // If the rotation node is the root then we need to move the pointer
+        // to the left child
+        let root_value = match self.root {
+            None => panic!("This should never be none"),
+            Some(ref root) => root.borrow().key,
+        };
+
+        if root_value == node.borrow().key {
+            self.root = Some(Rc::clone(&left_child));
+        }
+
+        // Step 2. Get a reference to the left-right child
+        // This can definitely be None, so that case needs to be handled
+        let left_right_child = match left_child.borrow().right {
             None => None,
             Some(ref node_left_right) => Some(Rc::clone(node_left_right)),
         };
-        u_node.borrow_mut().left = left_right_child;
-        if !u_node.borrow().left.is_none() {
-            match u_node.borrow().left {
-                None => panic!("Right rotation: this should never be None"),
-                Some(ref nl) => nl.borrow_mut().parent = Some(Rc::downgrade(&Rc::clone(u_node))),
-            };
-        }
 
-        node_left.borrow_mut().parent = match u_node.borrow().parent {
+        // Step 3. Set the right child of the left child to be node
+        left_child.borrow_mut().right = Some(Rc::clone(&node));
+
+        // Step 3.5 Get a reference to the parent of the input node
+        let parent = match node.borrow().parent {
             None => None,
-            Some(ref np) => match np.upgrade() {
-                None => panic!("Right rotation: this should never be None"),
-                Some(ref np) => Some(Rc::downgrade(&Rc::clone(np))),
+            Some(ref node_parent) => match node_parent.upgrade() {
+                None => None,
+                Some(ref node_parent) => Some(Rc::clone(node_parent)),
             },
         };
 
-        if u_node.borrow().parent.is_none() {
-            self.root = Some(Rc::clone(&node_left));
-        } else {
-            match u_node.borrow().parent {
-                None => panic!("Right rotation: this should never be None"),
-                Some(ref up) => match up.upgrade() {
-                    None => panic!("Right rotation: this should never be None"),
-                    Some(ref up) => match up.borrow().left {
-                        None => panic!("Right rotation: this should never be None"),
-                        Some(ref upl) => {
-                            if u_node.borrow().key == upl.borrow().key {
-                                up.borrow_mut().left = Some(Rc::clone(&node_left));
-                            } else {
-                                up.borrow_mut().right = Some(Rc::clone(&node_left));
-                            }
-                        }
-                    },
-                },
+        // Step 4. Set the parent of the left child to be the parent of node
+        left_child.borrow_mut().parent = match parent {
+            None => None,
+            Some(ref node_parent) => Some(Rc::downgrade(node_parent)),
+        };
+
+        // Step 5. Set the parent of node to be left child
+        node.borrow_mut().parent = Some(Rc::downgrade(&left_child));
+
+        // Step 6. Set the left child of node to be the left-right child
+        node.borrow_mut().left = match left_right_child {
+            None => None,
+            Some(ref node_left_right) => Some(Rc::clone(node_left_right)),
+        };
+
+        // Step 7. Set the parent of left-right child to be node
+        match left_right_child {
+            None => {}
+            Some(ref node_left_right) => {
+                node_left_right.borrow_mut().parent = Some(Rc::downgrade(&node))
             }
         }
 
-        node_left.borrow_mut().right = Some(Rc::clone(u_node));
-        u_node.borrow_mut().parent = Some(Rc::downgrade(&Rc::clone(&node_left)));
+        // Step 8. Re-point the parent nodes child pointer that is pointing
+        // to the rotation node to the left child
+        match parent {
+            None => {}
+            Some(ref node_parent) => {
+                // Gets the value of the parents children
+                let is_left_child = match node_parent.borrow().left {
+                    None => false,
+                    Some(ref node_parent_left) => {
+                        node.borrow().key == node_parent_left.borrow().key
+                    }
+                };
+
+                if is_left_child {
+                    node_parent.borrow_mut().left = Some(Rc::clone(&left_child));
+                    return;
+                }
+
+                let is_right_child = match node_parent.borrow().right {
+                    None => false,
+                    Some(ref node_parent_right) => {
+                        node.borrow().key == node_parent_right.borrow().key
+                    }
+                };
+
+                if is_right_child {
+                    node_parent.borrow_mut().right = Some(Rc::clone(&left_child));
+                    return;
+                }
+            }
+        }
     }
 
-    fn left_rotation1(&mut self, node: &mut Option<Rc<RefCell<TreeNode<u32>>>>) {
-        if let None = node {
-            println!("Rotation node in 'right_rotation' is None...");
-            return;
-        }
-        let u_node = match node {
-            None => return,
-            Some(ref n) => n,
+    fn left_rotation(&mut self, node: &mut Child<T>) {
+        let node = match node {
+            None => panic!("Rotation node in 'right_rotation' is None..."),
+            Some(ref node) => node,
         };
 
-        let node_right = match u_node.borrow().right {
-            None => panic!("Right rotation: this should never be None"),
-            Some(ref nl) => Rc::clone(nl),
+        // Step 1. Gets a reference to the right child of node
+        // Note that if we're performing a left-rotation, this shouldn't be None
+        let right_child = match node.borrow().right {
+            None => panic!("Left rotation: this should never be None"),
+            Some(ref node_right) => Rc::clone(node_right),
         };
-        let right_left_child = match node_right.borrow().left {
+
+        // If the rotation node is the root then we need to move the pointer
+        // to the left child
+        let root_value = match self.root {
+            None => panic!("This should never be none"),
+            Some(ref root) => root.borrow().key,
+        };
+
+        if root_value == node.borrow().key {
+            self.root = Some(Rc::clone(&right_child));
+        }
+
+        // Step 2. Get a reference to the right-left child
+        // This can definitely be None, so that case needs to be handled
+        let right_left_child = match right_child.borrow().left {
             None => None,
             Some(ref node_right_left) => Some(Rc::clone(node_right_left)),
         };
-        u_node.borrow_mut().right = right_left_child;
 
-        if !u_node.borrow().right.is_none() {
-            match u_node.borrow().right {
-                None => panic!("Right rotation: this should never be None"),
-                Some(ref nr) => nr.borrow_mut().parent = Some(Rc::downgrade(&Rc::clone(u_node))),
-            };
-        }
+        // Step 3. Set the left child of the right child to be node
+        right_child.borrow_mut().left = Some(Rc::clone(&node));
 
-        node_right.borrow_mut().parent = match u_node.borrow().parent {
+        // Step 3.5 Get a reference to the parent of the input node
+        let parent = match node.borrow().parent {
             None => None,
-            Some(ref np) => match np.upgrade() {
-                None => panic!("Right rotation: this should never be None"),
-                Some(ref np) => Some(Rc::downgrade(&Rc::clone(np))),
+            Some(ref node_parent) => match node_parent.upgrade() {
+                None => None,
+                Some(ref node_parent) => Some(Rc::clone(node_parent)),
             },
         };
 
-        if u_node.borrow().parent.is_none() {
-            self.root = Some(Rc::clone(&node_right));
-        } else {
-            let mut is_equal = false;
-            match u_node.borrow().parent {
-                None => panic!("Right rotation: this should never be None"),
-                Some(ref up) => match up.upgrade() {
-                    None => panic!("Right rotation: this should never be None"),
-                    Some(ref up) => {
-                        match up.borrow().left {
-                            None => panic!("Right rotation: this should never be None"),
-                            Some(ref upl) => {
-                                if u_node.borrow().key == upl.borrow().key {
-                                    is_equal = true;
-                                }
-                            }
-                        };
-                        if is_equal {
-                            up.borrow_mut().left = Some(Rc::clone(&node_right));
-                        } else {
-                            up.borrow_mut().right = Some(Rc::clone(&node_right));
-                        }
-                    }
-                },
+        // Step 4. Set the parent of the right child to be the parent of node
+        right_child.borrow_mut().parent = match parent {
+            None => None,
+            Some(ref node_parent) => Some(Rc::downgrade(node_parent)),
+        };
+
+        // Step 5. Set the parent of node to be right child
+        node.borrow_mut().parent = Some(Rc::downgrade(&right_child));
+
+        // Step 6. Set the right child of node to be the right-left child
+        node.borrow_mut().right = match right_left_child {
+            None => None,
+            Some(ref node_right_left) => Some(Rc::clone(node_right_left)),
+        };
+
+        // Step 7. Set the parent of right-left child to be node
+        match right_left_child {
+            None => {}
+            Some(ref node_right_left) => {
+                node_right_left.borrow_mut().parent = Some(Rc::downgrade(&node))
             }
         }
-        node_right.borrow_mut().left = Some(Rc::clone(u_node));
-        u_node.borrow_mut().parent = Some(Rc::downgrade(&Rc::clone(&node_right)));
+
+        // Step 8. Re-point the parent nodes child pointer that is pointing
+        // to the rotation node to the left child
+        match parent {
+            None => {}
+            Some(ref node_parent) => {
+                // Gets the value of the parents children
+                let is_left_child = match node_parent.borrow().left {
+                    None => false,
+                    Some(ref node_parent_left) => {
+                        node.borrow().key == node_parent_left.borrow().key
+                    }
+                };
+
+                if is_left_child {
+                    node_parent.borrow_mut().left = Some(Rc::clone(&right_child));
+                    return;
+                }
+
+                let is_right_child = match node_parent.borrow().right {
+                    None => false,
+                    Some(ref node_parent_right) => {
+                        node.borrow().key == node_parent_right.borrow().key
+                    }
+                };
+
+                if is_right_child {
+                    node_parent.borrow_mut().right = Some(Rc::clone(&right_child));
+                    return;
+                }
+            }
+        }
     }
 
-    fn check_property1(&mut self, node: &mut Option<Rc<RefCell<TreeNode<u32>>>>) {
+    fn check_property1(&mut self, node: &mut Child<T>) {
         let current_node = node;
         loop {
             let node = match current_node {
@@ -179,7 +256,7 @@ impl RBTree<u32> {
             if parent.is_none() {
                 return;
             }
-            let grandparent: Option<Rc<RefCell<TreeNode<u32>>>> = match parent {
+            let grandparent: Child<T> = match parent {
                 None => None,
                 Some(ref gp) => match gp.borrow().parent {
                     None => None,
@@ -276,7 +353,7 @@ impl RBTree<u32> {
                         }
                         if equal {
                             // INSERT LEFT ROTATE PARENT
-                            self.left_rotation1(&mut Some(Rc::clone(p)));
+                            self.left_rotation(&mut Some(Rc::clone(p)));
                             let temp = Some(Rc::clone(p));
                             parent = match node {
                                 None => {
@@ -304,7 +381,7 @@ impl RBTree<u32> {
                 // INSERT RIGHT ROTATE GRANDPARENT
                 match grandparent {
                     None => {}
-                    Some(ref gp) => self.right_rotation1(&mut Some(Rc::clone(gp))),
+                    Some(ref gp) => self.right_rotation(&mut Some(Rc::clone(gp))),
                 }
             } else {
                 let uncle = grandparent_left;
@@ -352,7 +429,7 @@ impl RBTree<u32> {
                         }
                         if equal {
                             // INSERT Right ROTATE PARENT
-                            self.right_rotation1(&mut Some(Rc::clone(p)));
+                            self.right_rotation(&mut Some(Rc::clone(p)));
                             let temp = Some(Rc::clone(p));
                             parent = match node {
                                 None => {
@@ -381,13 +458,13 @@ impl RBTree<u32> {
                 // INSERT LEFT ROTATE GRANDPARENT
                 match grandparent {
                     None => {}
-                    Some(ref gp) => self.left_rotation1(&mut Some(Rc::clone(gp))),
+                    Some(ref gp) => self.left_rotation(&mut Some(Rc::clone(gp))),
                 }
             }
         }
     }
 
-    fn insert(&mut self, key: u32) {
+    fn insert(&mut self, key: T) {
         let mut insert_node = TreeNode::new(key);
 
         if self.root.is_none() {
@@ -395,7 +472,7 @@ impl RBTree<u32> {
             insert_node.color = NodeColor::Black;
             self.root = Some(Rc::new(RefCell::new(insert_node)));
         } else {
-            let mut y: Option<Rc<RefCell<TreeNode<u32>>>> = None;
+            let mut y: Child<T> = None;
             let mut x = match self.root {
                 None => None,
                 Some(ref r) => Some(Rc::clone(r)),
@@ -406,7 +483,7 @@ impl RBTree<u32> {
                     None => None,
                     Some(ref n) => Some(Rc::clone(n)),
                 };
-                let mut z: Option<Rc<RefCell<TreeNode<u32>>>> = None;
+                let mut z: Child<T> = None;
                 match x {
                     None => {}
                     Some(ref x1) => {
@@ -470,7 +547,7 @@ impl RBTree<u32> {
         }
     }
 
-    fn inorder_traversal(&self) -> Vec<u32> {
+    fn inorder_traversal(&self) -> Vec<T> {
         match self.root {
             None => vec![],
             Some(ref root) => root.borrow().inorder_traversal(),
@@ -480,7 +557,7 @@ impl RBTree<u32> {
     /**
         algorithmic idea drawn from https://www.baeldung.com/java-print-binary-tree-diagram
     */
-    fn pretty_print(root: Option<Rc<RefCell<TreeNode<u32>>>>) -> String {
+    fn pretty_print(root: Child<T>) -> String {
         match root {
             None => {
                 return "".to_string();
@@ -521,7 +598,7 @@ impl RBTree<u32> {
         rc_sb: Rc<RefCell<String>>,
         padding: &str,
         pointer: &str,
-        node: Option<Rc<RefCell<TreeNode<u32>>>>,
+        node: Child<T>,
         has_right: bool,
     ) {
         match node {
@@ -630,9 +707,12 @@ fn main() {
     println!("The tree is empty: {}", tree.is_empty());
 
     tree.insert(10);
-    tree.insert(5);
-    tree.insert(1);
+    tree.insert(9);
+    tree.insert(8);
     tree.insert(7);
+    tree.insert(5);
+    tree.insert(4);
+    tree.insert(3);
 
     println!("{}", tree.count_leaves());
     println!("The tree is empty: {}", tree.is_empty());
