@@ -7,8 +7,6 @@ enum NodeColor {
     Red,
     Black,
 }
-// type Tree = Rc<RefCell<TreeNode<T>>>;
-// type RedBlackTreeNode = Option<Tree>;
 
 type Child<T> = Option<Rc<RefCell<TreeNode<T>>>>;
 type Parent<T> = Option<Weak<RefCell<TreeNode<T>>>>;
@@ -710,9 +708,15 @@ fn main() {
     tree.insert(9);
     tree.insert(8);
     tree.insert(7);
+    tree.insert(6);
     tree.insert(5);
     tree.insert(4);
     tree.insert(3);
+    tree.insert(11);
+    tree.insert(12);
+    tree.insert(13);
+    tree.insert(14);
+    tree.insert(15);
 
     println!("{}", tree.count_leaves());
     println!("The tree is empty: {}", tree.is_empty());
