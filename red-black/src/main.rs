@@ -29,409 +29,349 @@ impl RBTree<u32> {
   }
 
 
-  /**
-   * Performs a right rotation on a tree node
-   */
-  // fn right_rotate(&mut self, node: &mut TreeNode<T>) {
-    // Gets a mutable reference to the left child
-    // let &mut left_child = &mut node.left;
+  fn right_rotation1(&mut self, node: &mut Option<Rc<RefCell<TreeNode<u32>>>>) {
+    if let None = node {
+      println!("Rotation node in 'right_rotation' is None...");
+      return;
+    }
+    let u_node = match node {
+      None => return,
+      Some(ref n) => n
+    };
+
+    let node_left = match u_node.borrow().left {
+      None => panic!("Right rotation: this should never be None"),
+      Some(ref nl) => Rc::clone(nl)
+    };
+    let left_right_child = match node_left.borrow().right {
+      None => None,
+      Some(ref node_left_right) => Some(Rc::clone(node_left_right)),
+    };
+    u_node.borrow_mut().left = left_right_child;
+    
+    if !u_node.borrow().left.is_none() {
+      match u_node.borrow().left {
+        None => panic!("Right rotation: this should never be None"),
+        Some(ref nl) => nl.borrow_mut().parent = Some(Rc::downgrade(&Rc::clone(u_node)))
+      };
+    }
+
+    node_left.borrow_mut().parent = match u_node.borrow().parent {
+      None => None,
+      Some(ref np) => match np.upgrade() {
+        None => panic!("Right rotation: this should never be None"),
+        Some(ref np) => Some(Rc::downgrade(&Rc::clone(np)))
+      }
+    };
+
+    if u_node.borrow().parent.is_none() {
+      self.root = Some(Rc::clone(&node_left));
+    } else {
+      match u_node.borrow().parent {
+        None => panic!("Right rotation: this should never be None"),
+        Some(ref up) => match up.upgrade() {
+          None => panic!("Right rotation: this should never be None"),
+          Some(ref up) => match up.borrow().left {
+            None => panic!("Right rotation: this should never be None"),
+            Some(ref upl) => {
+              if u_node.borrow().key == upl.borrow().key {
+                up.borrow_mut().left = Some(Rc::clone(&node_left));
+              } else {
+                up.borrow_mut().right = Some(Rc::clone(&node_left));
+              }
+            }
+          }
+        }
+      }
+    }
+
+    node_left.borrow_mut().right = Some(Rc::clone(u_node));
+    u_node.borrow_mut().parent = Some(Rc::downgrade(&Rc::clone(&node_left)));
+  }
 
 
-    // Gets a reference to the left childs right child
+  fn left_rotation1(&mut self, node: &mut Option<Rc<RefCell<TreeNode<u32>>>>) {
+    if let None = node {
+      println!("Rotation node in 'right_rotation' is None...");
+      return;
+    }
+    let u_node = match node {
+      None => return,
+      Some(ref n) => n
+    };
 
-    // Sets the right child of the left child to the current node
+    let node_right = match u_node.borrow().right {
+      None => panic!("Right rotation: this should never be None"),
+      Some(ref nl) => Rc::clone(nl)
+    };
+    let right_left_child = match node_right.borrow().left {
+      None => None,
+      Some(ref node_right_left) => Some(Rc::clone(node_right_left)),
+    };
+    u_node.borrow_mut().right = right_left_child;
 
-    // Changes the parent of the left child to be the parent of the current node
+    if !u_node.borrow().right.is_none() {
+      match u_node.borrow().right {
+        None => panic!("Right rotation: this should never be None"),
+        Some(ref nr) => nr.borrow_mut().parent = Some(Rc::downgrade(&Rc::clone(u_node)))
+      };
+    }
 
-    // Sets the left child of the current node to the right child of the left child
+    node_right.borrow_mut().parent = match u_node.borrow().parent {
+      None => None,
+      Some(ref np) => match np.upgrade() {
+        None => panic!("Right rotation: this should never be None"),
+        Some(ref np) => Some(Rc::downgrade(&Rc::clone(np)))
+      }
+    };
 
-    // Changes the parent of current node to be the left child
-  // }
+    if u_node.borrow().parent.is_none() {
+      self.root = Some(Rc::clone(&node_right));
+    } else {
+      let mut is_equal = false;
+      match u_node.borrow().parent {
+        None => panic!("Right rotation: this should never be None"),
+        Some(ref up) => match up.upgrade() {
+          None => panic!("Right rotation: this should never be None"),
+          Some(ref up) => {
+            match up.borrow().left {
+              None => panic!("Right rotation: this should never be None"),
+              Some(ref upl) => {
+                if u_node.borrow().key == upl.borrow().key {
+                  is_equal = true; 
+                }
+              }
+            };
+            if is_equal {
+              up.borrow_mut().left = Some(Rc::clone(&node_right));
+            } else {
+              up.borrow_mut().right = Some(Rc::clone(&node_right));
+            }
+        }
+        }
+      }
+    }
+    node_right.borrow_mut().left = Some(Rc::clone(u_node));
+    u_node.borrow_mut().parent = Some(Rc::downgrade(&Rc::clone(&node_right)));
+  }
+
+  fn check_property1(&mut self, node: &mut Option<Rc<RefCell<TreeNode<u32>>>>) {
+    let mut current_node = node;
+    loop {
+      let mut node = match current_node {
+        None => None,
+        Some(ref n) => Some(Rc::clone(n))
+      };
+     
+      let mut parent = match node {
+        None => None,
+        Some(ref p) => match p.borrow().parent {
+          None => None,
+          Some(ref p) => match p.upgrade() {
+            None => None,
+            Some(ref p) => Some(Rc::clone(p))
+          }
+        }
+      };
+      if parent.is_none() {
+        return;
+      }
+      let grandparent : Option<Rc<RefCell<TreeNode<u32>>>> = match parent {
+        None => None,
+        Some(ref gp) => match gp.borrow().parent {
+          None => None,
+          Some(ref gp) => match gp.upgrade() {
+            None => None,
+            Some(ref gp) => Some(Rc::clone(gp))
+          }
+        }
+      };
+      if grandparent.is_none() {
+        return;
+      }
+
+      match parent {
+        None => break,
+        Some(ref p) => {
+          if p.borrow().color != NodeColor::Red {
+            break;
+          }
+        }
+      };
+
+      let grandparent_left = match grandparent {
+        None => None,
+        Some(ref gpl) => match gpl.borrow().left {
+          None => None,
+          Some(ref gpl) => Some(Rc::clone(gpl))
+        }
+      };
+      let grandparent_right = match grandparent {
+        None => None,
+        Some(ref gpr) => match gpr.borrow().right {
+          None => None,
+          Some(ref gpr) => Some(Rc::clone(gpr))
+        }
+      };
+
+      let mut key_equal = false;
+      let p_key = match parent {
+        None => return,
+        Some(ref p) => {
+          match grandparent_left {
+            None => {},
+            Some(ref gplk) => {
+              if p.borrow().key == gplk.borrow().key {
+                key_equal = true;
+              }
+            }
+          }
+        }
+      };
+
+      if key_equal {
+        let mut uncle = grandparent_right;
+        // Case 1
+        match uncle {
+          None => {},
+          Some(ref u) => {
+            if u.borrow().color == NodeColor::Red {
+              u.borrow_mut().color = NodeColor::Black;
+              match parent {
+                None => {panic!("?")},
+                Some(ref p) => p.borrow_mut().color = NodeColor::Black
+              }
+              match grandparent {
+                None => {panic!("?")},
+                Some(ref gp) => {
+                  gp.borrow_mut().color = NodeColor::Red;
+                  *current_node =  Some(Rc::clone(gp)); 
+                  continue;
+                }
+              }
+            }
+          }
+        }
+
+        // Case 2
+        match parent {
+          None => {},
+          Some(ref p) => {
+            let mut equal = false;
+            match p.borrow().right {
+              None => {},
+              Some(ref pr) => {
+                match node {
+                  None => {},
+                  Some(ref n) => {
+                    if pr.borrow().key == n.borrow().key {
+                      equal = true;
+                    }
+                  }
+                }
+              }
+            }
+            if equal {
+              // INSERT LEFT ROTATE PARENT
+              self.left_rotation1(&mut Some(Rc::clone(p)));
+              let temp = Some(Rc::clone(p));
+              parent = match node {
+                None => {panic!("?")},
+                Some(ref n) => Some(Rc::clone(n))
+              };
+              *current_node = temp;
+            }
+          }
+        }
+        
+        // Case 3
+        match parent {
+          None => {panic!("?")},
+          Some(ref p) => p.borrow_mut().color = NodeColor::Black
+        }
+        match grandparent {
+          None => {panic!("?")},
+          Some(ref gp) => gp.borrow_mut().color = NodeColor::Red
+        }
+        // INSERT RIGHT ROTATE GRANDPARENT
+        match grandparent {
+          None => {},
+          Some(ref gp) => self.right_rotation1(&mut Some(Rc::clone(gp)))
+        }
+      } else {
+        let mut uncle = grandparent_left;
+        // Case 1
+        match uncle {
+          None => {},
+          Some(ref u) => {
+            if u.borrow().color == NodeColor::Red {
+              u.borrow_mut().color = NodeColor::Black;
+              match parent {
+                None => {panic!("?")},
+                Some(ref p) => p.borrow_mut().color = NodeColor::Black
+              }
+              match grandparent {
+                None => {panic!("?")},
+                Some(ref gp) => {
+                  gp.borrow_mut().color = NodeColor::Red;
+                  *current_node = Some(Rc::clone(gp)); 
+                  continue;
+                }
+              }
+            }
+          }
+        }
+
+        // Case 2
+        match parent {
+          None => {},
+          Some(ref p) => {
+            let mut equal = false;
+            match p.borrow().left {
+              None => {},
+              Some(ref pr) => {
+                match node {
+                  None => {},
+                  Some(ref n) => {
+                    if pr.borrow().key == n.borrow().key {
+                      equal = true;
+                    }
+                  }
+                }
+              }
+            }
+            if equal {
+              // INSERT Right ROTATE PARENT
+              self.right_rotation1(&mut Some(Rc::clone(p)));
+              let temp = Some(Rc::clone(p));
+              parent = match node {
+                None => {panic!("?")},
+                Some(ref n) => Some(Rc::clone(n))
+              };
+              *current_node = temp;
+            }
+          }
+        }
+
+        // Case 3
+        match parent {
+          None => {panic!("?")},
+          Some(ref p) => p.borrow_mut().color = NodeColor::Black
+        }
+        match grandparent {
+          None => {panic!("?")},
+          Some(ref gp) => gp.borrow_mut().color = NodeColor::Red
+        }
+        // INSERT LEFT ROTATE GRANDPARENT
+        match grandparent {
+          None => {},
+          Some(ref gp) => self.left_rotation1(&mut Some(Rc::clone(gp)))
+        }
+      }
+    }
+  }
 
   fn insert(&mut self, key: u32) {
-    fn right_rotation(node: Option<Rc<RefCell<TreeNode<u32>>>>) {
-      // If the rotating-node is None then something weird is happening
-    
-      if let None = node {
-        println!("Rotation node in 'right_rotation' is None...");
-        return;
-      }
-  
-      let node = node.unwrap();
-  
-      // Step 1. Gets a reference to the left child of node
-      // Note that if we're performing a right-rotation, this shouldn't be None
-      let left_child = match node.borrow().left {
-        None => panic!("Right rotation: this should never be None"),
-        Some(ref node_left) => Rc::clone(node_left),
-      };
-  
-      // Step 2. Get a reference to the left-right child
-      // This can definitely be None, so that case needs to be handled
-      let left_right_child = match left_child.borrow().right {
-        None => None,
-        Some(ref node_left_right) => Some(Rc::clone(node_left_right)),
-      };
-  
-      // Step 3. Set the right child of the left child to be node
-      left_child.borrow_mut().right = Some(Rc::clone(&node));
-  
-      // Step 3.5 Get a reference to the parent of the input node
-      let parent = match node.borrow().parent {
-        None => None,
-        Some(ref node_parent) => match node_parent.upgrade() {
-          None => None,
-          Some(ref node_parent) => Some(Rc::clone(node_parent)),
-        },
-      };
-  
-      // Step 4. Set the parent of the left child to be the parent of node
-      left_child.borrow_mut().parent = match parent {
-        None => None,
-        Some(ref node_parent) => Some(Rc::downgrade(node_parent)),
-      };
-  
-      // Step 5. Set the parent of node to be left child
-      node.borrow_mut().parent = Some(Rc::downgrade(&left_child));
-  
-      // Step 6. Set the left child of node to be the left-right child
-  
-      node.borrow_mut().left = match left_right_child {
-        None => None,
-        Some(ref node_left_right) => Some(Rc::clone(node_left_right)),
-      };
-  
-      // Step 7. Set the parent of left-right child to be node
-      match left_right_child {
-        None => {}
-        Some(ref node_left_right) => {
-          node_left_right.borrow_mut().parent = Some(Rc::downgrade(&node))
-        }
-      }
-    }
-  
-    fn left_rotation(node: Option<Rc<RefCell<TreeNode<u32>>>>) {
-      // If the rotating-node is None then something weird is happening
-      if let None = node {
-        println!("Rotation node in 'right_rotation' is None...");
-        return;
-      }
-  
-      let node = node.unwrap();
-  
-      // Step 1. Gets a reference to the right child of node
-      // Note that if we're performing a left-rotation, this shouldn't be None
-      let right_child = match node.borrow().right {
-        None => panic!("Left rotation: this should never be None"),
-        Some(ref node_right) => Rc::clone(node_right),
-      };
-  
-      // Step 2. Get a reference to the right-left child
-      // This can definitely be None, so that case needs to be handled
-      let right_left_child = match right_child.borrow().left {
-        None => None,
-        Some(ref node_right_left) => Some(Rc::clone(node_right_left)),
-      };
-  
-      // Step 3. Set the left child of the right child to be node
-      right_child.borrow_mut().left = Some(Rc::clone(&node));
-  
-      // Step 3.5 Get a reference to the parent of the input node
-      let parent = match node.borrow().parent {
-        None => None,
-        Some(ref node_parent) => match node_parent.upgrade() {
-          None => None,
-          Some(ref node_parent) => Some(Rc::clone(node_parent)),
-        },
-      };
-  
-      // Step 4. Set the parent of the right child to be the parent of node
-      right_child.borrow_mut().parent = match parent {
-        None => None,
-        Some(ref node_parent) => Some(Rc::downgrade(node_parent)),
-      };
-  
-      // Step 5. Set the parent of node to be right child
-      node.borrow_mut().parent = Some(Rc::downgrade(&right_child));
-  
-      // Step 6. Set the right child of node to be the right-left child
-      node.borrow_mut().right = match right_left_child {
-        None => None,
-        Some(ref node_right_left) => Some(Rc::clone(node_right_left)),
-      };
-  
-      // Step 7. Set the parent of right-left child to be node
-      match right_left_child {
-        None => {}
-        Some(ref node_right_left) => {
-          node_right_left.borrow_mut().parent = Some(Rc::downgrade(&node))
-        }
-      }
-    }
-    fn insert(child: &mut Option<Rc<RefCell<TreeNode<u32>>>>, mut insert_node: TreeNode<u32>) {
-      // let mut child = child1.as_ref();
-      match child.as_ref() {
-        None => {},
-        Some(ref c) => {
-          if c.borrow().key == insert_node.key {
-            return;
-          }
-
-          if c.borrow().key > insert_node.key {
-            let mut c_mut = c.borrow_mut();
-
-            match c_mut.left {
-              None => {
-                
-                insert_node.parent = Some(Rc::downgrade(&Rc::clone(c)));
-                let x = Rc::new(RefCell::new(insert_node));
-                c_mut.left = Some(Rc::clone(&x));
-                drop(c_mut);
-                check_property1(&mut Some(Rc::clone(&x)));
-              },
-              Some(ref cl) => {
-                insert(&mut Some(Rc::clone(cl)), insert_node)
-              }
-            }
-          } else {
-            let mut c_mut = c.borrow_mut();
-
-            match c_mut.right {
-              None => {
-
-                insert_node.parent = Some(Rc::downgrade(&Rc::clone(c)));
-                let x = Rc::new(RefCell::new(insert_node));
-                c_mut.right = Some(Rc::clone(&x));
-                drop(c_mut);
-                check_property1(&mut Some(Rc::clone(&x)));
-              },
-              Some(ref cl) => {
-                insert(&mut Some(Rc::clone(cl)), insert_node)
-              }
-            }
-          }
-        }
-      }
-    }
-
-    fn check_property1(node: &mut Option<Rc<RefCell<TreeNode<u32>>>>) {
-      let mut current_node = node;
-      println!("Current node: {:?}", current_node);
-      loop {
-        let mut node = match current_node {
-          None => None,
-          Some(ref n) => Some(Rc::clone(n))
-        };
-        
-        let mut parent = match node {
-          None => None,
-          Some(ref p) => match p.borrow().parent {
-            None => None,
-            Some(ref p) => match p.upgrade() {
-              None => None,
-              Some(ref p) => Some(Rc::clone(p))
-            }
-          }
-        };
-        println!("Parent node {:?}", parent);
-        if parent.is_none() {
-          return;
-        }
-        let grandparent : Option<Rc<RefCell<TreeNode<u32>>>> = match parent {
-          None => None,
-          Some(ref gp) => match gp.borrow().parent {
-            None => None,
-            Some(ref gp) => match gp.upgrade() {
-              None => None,
-              Some(ref gp) => Some(Rc::clone(gp))
-            }
-          }
-        };
-        println!("GP {:?}", grandparent);
-        if grandparent.is_none() {
-          return;
-        }
-
-        match parent {
-          None => break,
-          Some(ref p) => {
-            if p.borrow().color != NodeColor::Red {
-              break;
-            }
-          }
-        };
-
-        let grandparent_left = match grandparent {
-          None => None,
-          Some(ref gpl) => match gpl.borrow().left {
-            None => None,
-            Some(ref gpl) => Some(Rc::clone(gpl))
-          }
-        };
-        let grandparent_right = match grandparent {
-          None => None,
-          Some(ref gpr) => match gpr.borrow().right {
-            None => None,
-            Some(ref gpr) => Some(Rc::clone(gpr))
-          }
-        };
-
-        let mut key_equal = false;
-        let p_key = match parent {
-          None => return,
-          Some(ref p) => {
-            match grandparent_left {
-              None => return,
-              Some(ref gplk) => {
-                if p.borrow().key == gplk.borrow().key {
-                  key_equal = true;
-                }
-              }
-            }
-          }
-        };
-
-        if key_equal {
-          let mut uncle = grandparent_right;
-          // Case 1
-          match uncle {
-            None => {},
-            Some(ref u) => {
-              if u.borrow().color == NodeColor::Red {
-                u.borrow_mut().color = NodeColor::Black;
-                match parent {
-                  None => {panic!("?")},
-                  Some(ref p) => p.borrow_mut().color = NodeColor::Black
-                }
-                match grandparent {
-                  None => {panic!("?")},
-                  Some(ref gp) => {
-                    gp.borrow_mut().color = NodeColor::Red;
-                    node = Some(Rc::clone(gp)); 
-                    continue;
-                  }
-                }
-              }
-            }
-          }
-
-          // Case 2
-          match parent {
-            None => {},
-            Some(ref p) => {
-              let mut equal = false;
-              match p.borrow().right {
-                None => {},
-                Some(ref pr) => {
-                  match node {
-                    None => {},
-                    Some(ref n) => {
-                      if pr.borrow().key == n.borrow().key {
-                        equal = true;
-                      }
-                    }
-                  }
-                }
-              }
-              if equal {
-                // INSERT LEFT ROTATE PARENT
-                left_rotation(Some(Rc::clone(p)));
-                let temp = Some(Rc::clone(p));
-                parent = match node {
-                  None => {panic!("?")},
-                  Some(ref n) => Some(Rc::clone(n))
-                };
-                node = temp;
-              }
-            }
-          }
-          
-          // Case 3
-          match parent {
-            None => {panic!("?")},
-            Some(ref p) => p.borrow_mut().color = NodeColor::Black
-          }
-          match grandparent {
-            None => {panic!("?")},
-            Some(ref gp) => gp.borrow_mut().color = NodeColor::Red
-          }
-          // INSERT RIGHT ROTATE GRANDPARENT
-          match grandparent {
-            None => {},
-            Some(ref gp) => right_rotation(Some(Rc::clone(gp)))
-          }
-        } else {
-          let mut uncle = grandparent_left;
-          // Case 1
-          match uncle {
-            None => {},
-            Some(ref u) => {
-              if u.borrow().color == NodeColor::Red {
-                u.borrow_mut().color = NodeColor::Black;
-                match parent {
-                  None => {panic!("?")},
-                  Some(ref p) => p.borrow_mut().color = NodeColor::Black
-                }
-                match grandparent {
-                  None => {panic!("?")},
-                  Some(ref gp) => {
-                    gp.borrow_mut().color = NodeColor::Red;
-                    node = Some(Rc::clone(gp)); 
-                    continue;
-                  }
-                }
-              }
-            }
-          }
-
-          // Case 2
-          match parent {
-            None => {},
-            Some(ref p) => {
-              let mut equal = false;
-              match p.borrow().left {
-                None => {},
-                Some(ref pr) => {
-                  match node {
-                    None => {},
-                    Some(ref n) => {
-                      if pr.borrow().key == n.borrow().key {
-                        equal = true;
-                      }
-                    }
-                  }
-                }
-              }
-              if equal {
-                // INSERT Right ROTATE PARENT
-                right_rotation(Some(Rc::clone(p)));
-                let temp = Some(Rc::clone(p));
-                parent = match node {
-                  None => {panic!("?")},
-                  Some(ref n) => Some(Rc::clone(n))
-                };
-                node = temp;
-              }
-            }
-          }
-
-          // Case 3
-          match parent {
-            None => {panic!("?")},
-            Some(ref p) => p.borrow_mut().color = NodeColor::Black
-          }
-          match grandparent {
-            None => {panic!("?")},
-            Some(ref gp) => gp.borrow_mut().color = NodeColor::Red
-          }
-          // INSERT LEFT ROTATE GRANDPARENT
-          match grandparent {
-            None => {},
-            Some(ref gp) => left_rotation(Some(Rc::clone(gp)))
-          }
-        }
-      }
-    }
 
     let mut insert_node = TreeNode::new(key);
 
@@ -440,7 +380,60 @@ impl RBTree<u32> {
       insert_node.color = NodeColor::Black;
       self.root = Some(Rc::new(RefCell::new(insert_node)));
     } else {
-      insert(&mut self.root, insert_node);
+      let mut y : Option<Rc<RefCell<TreeNode<u32>>>> = None;
+      let mut x = match self.root {
+          None => {None},
+          Some(ref r) => Some(Rc::clone(r))
+      };
+
+      while !x.is_none() {
+        y = match x {
+          None => None,
+          Some(ref n) => Some(Rc::clone(n))
+        };
+        let mut z : Option<Rc<RefCell<TreeNode<u32>>>> = None;
+        match x {
+          None => {},
+          Some(ref x1) => {
+            if insert_node.key < x1.borrow().key {
+              z = match x1.borrow().left {
+                None => None, 
+                Some(ref x1l) => Some(Rc::clone(x1l))
+              }
+            } else {
+              z = match x1.borrow().right {
+                None => None, 
+                Some(ref x1l) => Some(Rc::clone(x1l))
+              }
+            }
+          }
+        }
+        x = z
+      }
+      insert_node.parent = match y {
+        None => None,
+        Some(ref y1) => Some(Rc::downgrade(&Rc::clone(y1)))
+      };
+      if y.is_none() {
+        self.root = Some(Rc::new(RefCell::new(insert_node)));
+      } else {
+        match y {
+          None => panic!("?"),
+          Some(ref y1) => {
+            if insert_node.key < y1.borrow().key {
+              let w = Rc::new(RefCell::new(insert_node));
+              y1.borrow_mut().left = Some(Rc::clone(&w));
+              self.check_property1(&mut Some(Rc::clone(&w)));
+            } else {
+              let w = Rc::new(RefCell::new(insert_node));
+              y1.borrow_mut().right = Some(Rc::clone(&w));
+              self.check_property1(&mut Some(Rc::clone(&w)));
+            }
+          }
+        }
+      }
+
+      // insert(&mut self.root, insert_node);
       match self.root {
         None => {},
         Some(ref r) => r.borrow_mut().color = NodeColor::Black
@@ -459,75 +452,6 @@ impl<T: Ord + Copy> TreeNode<T> {
       right: None
     }
   }
-
-  // fn is_none(node : RedBlackTree) -> bool {
-  //   match node {
-  //     Some(_) => return true,
-  //     None => return false
-  //   }
-  // }
-  
-  // fn insert1(&mut self, key: T) {
-  //   let mut node : Option<Rc<RefCell<TreeNode<T>>>>;
-  //   if self.key < key {
-  //     match &self.right {
-  //       Some(n) => {
-  //         n.borrow_mut().insert1(key);
-  //       },
-  //       None => {self.right = Some(Rc::new(RefCell::new(TreeNode::new(key))))}
-  //     }
-  //   } else {
-  //     match &self.left {
-  //       Some(n) => {
-  //         n.borrow_mut().insert1(key);
-  //       },
-  //       None => {self.left = Some(Rc::new(RefCell::new(TreeNode::new(key))))}
-  //     }
-  //   }
-
-  // }
-  // fn insert(self, key: T) {
-  //   let mut insert_node = TreeNode::new(key);
-  //   let mut parent : Option<Rc<RefCell<TreeNode<T>>>> = None;
-  //   let mut node : Option<Rc<RefCell<TreeNode<T>>>> = Some(Rc::new(RefCell::new(self)));
-
-  //   loop {
-      
-  //     match node {
-  //       Some(n) => {
-  //         parent = Some(Rc::new(RefCell::new(n)));
-  //         if insert_node.key < n.borrow_mut().key {
-  //           node = n.borrow_mut().left;
-  //         } else {
-  //           node = n.borrow_mut().right;
-  //         }
-  //       },
-  //       None => {break}
-  //     }
-      
-  //   }
-  //   // insert_node.parent = parent;
-
-  //   // match parent {
-  //   //   Some(p) => {
-  //   //     if key < p.borrow_mut().key {
-  //   //       p.borrow_mut().left = Some(Rc::new(RefCell::new(insert_node)));
-  //   //     } else {
-  //   //       p.borrow_mut().right = Some(Rc::new(RefCell::new(insert_node)));
-  //   //     }
-  //   //   },
-  //   //   None => {}
-  //   // }
-  //   // if is_none(parent) {
-  //   //   self = node;
-  //   // } else {
-  //   //   if key < parent.key {
-  //   //     parent.left = Some(Rc::new(RefCell::new(insert_node));
-  //   //   } else {
-  //   //     parent.right = Some(Rc::new(RefCell::new(insert_node));
-  //   //   }
-  //   // }
-  // }
 }
 
 fn main() {
@@ -536,14 +460,17 @@ fn main() {
   // tree.insert1(x);
   let mut tree = RBTree::new();
   tree.insert(10);
-  // println!("{:#?}", tree);
   tree.insert(5);
-  // println!("{:#?}", tree);
   tree.insert(1);
-  // tree.insert(2);
-  // tree.insert(10);
-  // tree.insert(11);
-  // tree.insert(9);
+  tree.insert(2);
+  tree.insert(11);
+  tree.insert(9);
+  tree.insert(12);
+  tree.insert(14);
+  tree.insert(0);
+  tree.insert(3);
+  tree.insert(20);
+
 
   println!("{:#?}", tree);
 }
