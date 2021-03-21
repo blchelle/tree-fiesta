@@ -447,6 +447,295 @@ impl RBTree<u32> {
     }
   }
 
+  fn fix_delete(&mut self, mut node: &mut Option<Rc<RefCell<TreeNode<u32>>>>, mut parent: &mut Option<Rc<RefCell<TreeNode<u32>>>>) {
+    let mut other : Option<Rc<RefCell<TreeNode<u32>>>>;
+    let mut node = match node {
+      None => None,
+      Some(ref n) => Some(Rc::clone(n))
+    };
+    let mut parent = match parent {
+      None => None,
+      Some(ref p) => Some(Rc::clone(p))
+    };
+    loop {
+      let root_key = match self.root {
+        None => break,
+        Some(ref r) => r.borrow().key
+      };
+      let node_key = match node { 
+        None => break, 
+        Some(ref n) => n.borrow().key
+      };
+      match node {  // exit conditon
+        None => break, 
+        Some(ref n) => {
+          if !(n.borrow().key != root_key && n.borrow().color == NodeColor::Black) {
+            break;
+          } 
+        }
+      };
+
+      let mut is_left = false;
+      match parent {
+        None => break,
+        Some(ref p) => match p.borrow().left {
+          None => break,
+          Some(ref pl) => {
+            if pl.borrow().key == node_key {
+              other = match p.borrow().right {
+                None => None,
+                Some(ref pr) => Some(Rc::clone(pr))
+              };
+              is_left = true; 
+            } else {
+              other = match p.borrow().left {
+                None => None,
+                Some(ref pl) => Some(Rc::clone(pl))
+              };
+            }
+          }
+        }
+      }
+
+      if is_left {
+        let mut flag = false;
+        match other {
+          None => break,
+          Some(ref o) => {
+            if o.borrow().color == NodeColor::Red {
+              o.borrow_mut().color = NodeColor::Black;
+              match parent {
+                None => break,
+                Some(ref p) => p.borrow_mut().color = NodeColor::Red
+              };
+              match parent {
+                None => {},
+                Some(ref p) => self.left_rotation1(&mut Some(Rc::clone(p)))
+              };
+              flag = true;
+            }
+          }
+        };
+        if flag {
+          other = match parent {
+            None => break,
+            Some(ref p) => match p.borrow().right {
+              None => break,
+              Some(ref pr) => Some(Rc::clone(pr))
+            }
+          };
+        }
+
+        let mut matches = false;
+        match other {
+          None => break,
+          Some(ref o) => {
+            let mut other_left_color = match o.borrow().left {
+              None => break,
+              Some(ref ol) => {
+                if ol.borrow().color == NodeColor::Black {
+                  NodeColor::Black
+                } else {
+                  NodeColor::Red
+                }
+              }
+            };
+            let mut other_right_color = match o.borrow().right {
+              None => break,
+              Some(ref or) => {
+                if or.borrow().color == NodeColor::Black {
+                  NodeColor::Black
+                } else {
+                  NodeColor::Red
+                }
+              }
+            };
+
+            if other_left_color == NodeColor::Black && other_right_color == NodeColor::Black {
+              o.borrow_mut().color = NodeColor::Red;
+              node = match parent {
+                None => None,
+                Some(ref p) => Some(Rc::clone(p))
+              };
+              parent = match node {
+                None => None,
+                Some(ref n) => match n.borrow().parent {
+                  None => None,
+                  Some(ref np) => match np.upgrade() {
+                    None => None,
+                    Some(ref npu) => Some(Rc::clone(npu))
+                  }
+                }
+              }
+            } else {
+              if other_right_color == NodeColor::Black {
+                match o.borrow().left {
+                  None => {break},
+                  Some(ref ol) => ol.borrow_mut().color = NodeColor::Black
+                };
+                o.borrow_mut().color = NodeColor::Red;
+                self.right_rotation1(&mut Some(Rc::clone(o)));
+                matches = true;
+              }
+            }
+          }
+        }
+        if matches {
+          other = match parent {
+            None => break,
+            Some(ref p) => match p.borrow().right {
+              None => break,
+              Some(ref pr) => Some(Rc::clone(pr))
+            } 
+          };
+        }
+        match other {
+          None => break,
+          Some(ref o) => {
+            match parent {
+              None => break,
+              Some(ref p) => {
+                if p.borrow().color == NodeColor::Black {
+                  o.borrow_mut().color = NodeColor::Black;
+                } else {
+                  o.borrow_mut().color = NodeColor::Red;
+                }
+                p.borrow_mut().color = NodeColor::Black;
+                match o.borrow().right {
+                  None => break,
+                  Some(ref or) => or.borrow_mut().color = NodeColor::Black
+                }
+                self.left_rotation1(&mut Some(Rc::clone(p)));
+                node = match self.root {
+                  None => None,
+                  Some(ref r) => Some(Rc::clone(r))
+                };
+                break;
+              }
+            }
+          }
+        }
+      } else {
+        let mut flag = false;
+        match other {
+          None => break,
+          Some(ref o) => {
+            if o.borrow().color == NodeColor::Red {
+              o.borrow_mut().color = NodeColor::Black;
+              match parent {
+                None => break,
+                Some(ref p) => p.borrow_mut().color = NodeColor::Red
+              };
+              match parent {
+                None => {},
+                Some(ref p) => self.right_rotation1(&mut Some(Rc::clone(p)))
+              };
+              flag = true;
+            }
+          }
+        };
+        if flag {
+          other = match parent {
+            None => break,
+            Some(ref p) => match p.borrow().left {
+              None => break,
+              Some(ref pl) => Some(Rc::clone(pl))
+            }
+          };
+        }
+        let mut matches = false;
+        match other {
+          None => break,
+          Some(ref o) => {
+            let mut other_left_color = match o.borrow().left {
+              None => break,
+              Some(ref ol) => {
+                if ol.borrow().color == NodeColor::Black {
+                  NodeColor::Black
+                } else {
+                  NodeColor::Red
+                }
+              }
+            };
+            let mut other_right_color = match o.borrow().right {
+              None => break,
+              Some(ref or) => {
+                if or.borrow().color == NodeColor::Black {
+                  NodeColor::Black
+                } else {
+                  NodeColor::Red
+                }
+              }
+            };
+
+            if other_left_color == NodeColor::Black && other_right_color == NodeColor::Black {
+              o.borrow_mut().color = NodeColor::Red;
+              node = match parent {
+                None => None,
+                Some(ref p) => Some(Rc::clone(p))
+              };
+              parent = match node {
+                None => None,
+                Some(ref n) => match n.borrow().parent {
+                  None => None,
+                  Some(ref np) => match np.upgrade() {
+                    None => None,
+                    Some(ref npu) => Some(Rc::clone(npu))
+                  }
+                }
+              }
+            } else {
+              if other_left_color == NodeColor::Black {
+                match o.borrow().right {
+                  None => {break},
+                  Some(ref or) => or.borrow_mut().color = NodeColor::Black
+                };
+                o.borrow_mut().color = NodeColor::Red;
+                self.left_rotation1(&mut Some(Rc::clone(o)));
+                matches = true;
+              }
+            }
+          }
+        }
+        if matches {
+          other = match parent {
+            None => break,
+            Some(ref p) => match p.borrow().left {
+              None => break,
+              Some(ref pl) => Some(Rc::clone(pl))
+            } 
+          };
+        }
+        match other {
+          None => break,
+          Some(ref o) => {
+            match parent {
+              None => break,
+              Some(ref p) => {
+                if p.borrow().color == NodeColor::Black {
+                  o.borrow_mut().color = NodeColor::Black;
+                } else {
+                  o.borrow_mut().color = NodeColor::Red;
+                }
+                p.borrow_mut().color = NodeColor::Black;
+                match o.borrow().left {
+                  None => break,
+                  Some(ref ol) => ol.borrow_mut().color = NodeColor::Black
+                }
+                self.right_rotation1(&mut Some(Rc::clone(p)));
+                node = match self.root {
+                  None => None,
+                  Some(ref r) => Some(Rc::clone(r))
+                };
+                break;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
   fn delete(&mut self, key: u32) {
     fn min_node(node: &Option<Rc<RefCell<TreeNode<u32>>>>) -> Option<Rc<RefCell<TreeNode<u32>>>> {
       let mut temp = match node {
@@ -469,7 +758,7 @@ impl RBTree<u32> {
       return temp;
     }
     let mut node_to_delete = self.find(key);
-
+    
     let node_left = match node_to_delete {
       None => return,
       Some(ref n) => match n.borrow().left {
@@ -485,16 +774,18 @@ impl RBTree<u32> {
       }
     };
 
+    let root_key = match self.root {
+      None => return,
+      Some(ref rc) => rc.borrow().key
+    };
+
     if !node_left.is_none() && !node_right.is_none() {
       let mut replace = min_node(&node_right);
       let node_key = match node_to_delete {
         None => return,
         Some(ref nc) => nc.borrow().key
       };
-      let root_key = match node_to_delete {
-        None => return,
-        Some(ref rc) => rc.borrow().key
-      };
+      
       if node_key == root_key {
         self.root = match replace {
           None => None,
@@ -547,7 +838,153 @@ impl RBTree<u32> {
         }
       };
 
+      let mut color = match replace {
+        None => return,
+        Some(ref r) => {
+          if r.borrow().color == NodeColor::Black {
+            NodeColor::Black
+          } else {
+            NodeColor::Red
+          }
+        }
+      };
+
+      match parent {
+        None => {},
+        Some(ref p) => {
+          if p.borrow().key == key {
+            parent = match replace {
+              None => None,
+              Some(ref r) => Some(Rc::clone(r))
+            }
+          } else {
+            if !child.is_none() {
+              match child {
+                None => {},
+                Some(ref c) => c.borrow_mut().parent = Some(Rc::downgrade(&Rc::clone(p)))
+              }
+            }
+            p.borrow_mut().left = match child {
+              None => None,
+              Some(ref c) => Some(Rc::clone(c))
+            };
+            match replace {
+              None => {},
+              Some(ref r) => match node_to_delete {
+                None => {return},
+                Some(ref n) => match n.borrow().right {
+                  None => r.borrow_mut().right = None,
+                  Some(ref nr) => {
+                    r.borrow_mut().right = Some(Rc::clone(nr));
+                    nr.borrow_mut().parent = Some(Rc::downgrade(&Rc::clone(r)))
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      
+      match replace {
+        None => return,
+        Some(ref r) => {
+          match node_to_delete {
+            None => {},
+            Some(ref n) => {
+              r.borrow_mut().parent = match n.borrow().parent {
+                None => None,
+                Some(ref np) => match np.upgrade() {
+                  None => None,
+                  Some(ref npu) => Some(Rc::downgrade(&Rc::clone(npu)))
+                }
+              };
+              if n.borrow().color == NodeColor::Black {
+                r.borrow_mut().color = NodeColor::Black;
+              } else {
+                r.borrow_mut().color = NodeColor::Red;
+              }
+              r.borrow_mut().left = match n.borrow().left {
+                None => None,
+                Some(ref nl) => Some(Rc::clone(nl))
+              };
+              match n.borrow().left {
+                None => {},
+                Some(ref nl) => nl.borrow_mut().parent = Some(Rc::downgrade(&Rc::clone(r)))
+              }
+            }
+          };
+          
+        }
+      };
+
+      if color == NodeColor::Black {
+        // DELETE FIXUP CHILD, PARENT
+      }
+      return;
     }
+
+    let mut child : Option<Rc<RefCell<TreeNode<u32>>>>;
+    if !node_left.is_none() {
+      child = node_left;
+    } else {
+      child = node_right;
+    }
+    let mut parent = match node_to_delete {
+      None => None,
+      Some(ref n) => match n.borrow().parent {
+        None => None,
+        Some(ref np) => match np.upgrade() {
+          None => None,
+          Some(ref npu) => Some(Rc::clone(npu))
+        }
+      }
+    };
+    let mut color = match node_to_delete {
+      None => return,
+      Some(ref n) => {
+        if n.borrow().color == NodeColor::Black {
+          NodeColor::Black
+        } else {
+          NodeColor::Red
+        }
+      }
+    };
+
+    if !child.is_none() {
+      match child {
+        None => {},
+        Some(ref c) => match parent {
+          None => c.borrow_mut().parent = None,
+          Some(ref p) => c.borrow_mut().parent = Some(Rc::downgrade(&Rc::clone(p)))
+        }
+      };
+    }
+
+    if root_key == key {
+      self.root = child;
+    } else {
+      match parent {
+        None => return,
+        Some(ref p) => {
+          let pl_key = match p.borrow().left {
+            None => return,
+            Some(ref pl) => {
+              pl.borrow().key
+            }
+          };
+          if pl_key == key {
+            p.borrow_mut().left = child;
+          } else {
+            p.borrow_mut().right = child;
+          }
+        }
+      }
+    }
+
+    if color == NodeColor::Black {
+      // DELETE FIXUP CHILD PARENT
+    }
+    return;
   }
 
   fn find(&mut self, key: u32) -> Option<Rc<RefCell<TreeNode<u32>>>> {
@@ -605,14 +1042,16 @@ fn main() {
   tree.insert(1);
   tree.insert(7);
   tree.insert(6);
-  // tree.insert(9);
-  // tree.insert(12);
-  // tree.insert(14);
-  // tree.insert(0);
-  // tree.insert(3);
-  // tree.insert(20);
+  tree.insert(9);
+  tree.insert(12);
+  tree.insert(14);
+  tree.insert(0);
+  tree.insert(3);
+  tree.insert(20);
 
 
   println!("{:#?}", tree);
-  // println!("{:#?}", tree.find(14));
+  tree.delete(14);
+  tree.delete(3);
+  println!("{:#?}", tree);
 }
