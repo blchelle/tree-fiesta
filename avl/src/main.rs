@@ -1,3 +1,5 @@
+mod avl;
+
 // mod avl;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -12,6 +14,13 @@ struct AVLNode<T> {
     height: i32,
     left: AVLTree<T>,
     right: AVLTree<T>,
+}
+
+#[derive(Clone, Debug)]
+struct AVL<T: Ord+Copy+Display> {
+    // this is bad solution to the problem but
+    // fixing this by adding a new "blank" node as the precursor
+    root: AVLTree<T>
 }
 
 #[derive(Debug)]
@@ -47,10 +56,10 @@ impl<T: Ord+Copy+Display> AVLNode<T> {
     fn getMinVal(node: AVLTree<T>) -> T {
         let n_unwrap = node.unwrap();
         let n_bor = n_unwrap.borrow();
-        if n_bor.right.is_some() {
-            return Self::getMinVal(n_bor.right.clone());
+        return if n_bor.right.is_some() {
+            Self::getMinVal(n_bor.right.clone())
         } else {
-            return n_bor.key;
+            n_bor.key
         }
     }
 
@@ -224,14 +233,18 @@ impl<T: Ord+Copy+Display> AVLNode<T> {
                     cur.key = tmp;
                     cur.right = Self::delete(cur.right.clone(), tmp);
                     rem_node = root.clone();
+                    rem_mut = cur;
                 } else if cur.left.is_some() {
                     rem_node = cur.left.clone();
+                    rem_unwrap = rem_node.clone().unwrap();
+                    rem_mut = rem_unwrap.borrow_mut();
                 } else if cur.right.is_some() {
                     rem_node = cur.right.clone();
+                    rem_unwrap = rem_node.clone().unwrap();
+                    rem_mut = rem_unwrap.borrow_mut();
+                } else {
+                    panic!("This cond doesn't exist");
                 }
-
-                rem_unwrap = rem_node.clone().unwrap();
-                rem_mut = rem_unwrap.borrow_mut();
             }
 
             // let rem_unwrap = rem_node.clone().unwrap();
@@ -327,9 +340,9 @@ impl<T: Ord+Copy+Display> AVLNode<T> {
         algorithmic idea drawn from https://www.baeldung.com/java-print-binary-tree-diagram
     */
     fn prettyPrint(root: AVLTree<T>) -> String {
-        match root {
+        return match root {
             None => {
-                return "".to_string();
+                "".to_string()
             }
             Some(node) => {
                 let rc_sb = Rc::from(RefCell::from(String::from("")));
@@ -351,7 +364,7 @@ impl<T: Ord+Copy+Display> AVLNode<T> {
                 Self::prettyPrintHelper(rc_sb.clone(), "", pointerLeft, n.left.clone(), n.right.is_some());
                 Self::prettyPrintHelper(rc_sb.clone(), "", pointerRight, n.right.clone(), false);
 
-                return rc_sb.borrow_mut().clone();
+                rc_sb.clone().borrow_mut().to_string()
             }
         }
     }
@@ -393,35 +406,103 @@ impl<T: Ord+Copy+Display> AVLNode<T> {
     }
 }
 
+// blank node as precursor that has root on its right always
+impl<T: Ord+Copy+Display> AVL<T> {
+    pub fn new() -> Self {
+        Self {root: None}
+    }
+
+    pub fn isEmpty(&mut self) -> bool {
+        // let node = self.root
+        AVLNode::isEmpty(self.root.clone())
+    }
+
+    pub fn insert(&mut self, data : T) {
+        self.root = AVLNode::insert(self.root.clone(), data);
+    }
+
+    pub fn delete(&mut self, data : T) {
+        self.root = AVLNode::delete(self.root.clone(), data);
+    }
+
+    pub fn count(&self) -> i32 {
+        AVLNode::count(self.root.clone())
+    }
+
+    pub fn height(&self) -> i32 {
+        AVLNode::height(self.root.clone())
+    }
+
+    pub fn inorder(&self) {
+        AVLNode::inorder(self.root.clone());
+        println!();
+    }
+
+    pub fn print(&self) -> String {
+        AVLNode::prettyPrint(self.root.clone())
+    }
+}
+
+
+
+
 fn main() {
-    println!("Hello, world!");
+    let mut tree = AVL::new();
+    tree.insert(1);
+    tree.insert(2);
+    tree.insert(3);
+    tree.insert(4);
+    tree.insert(5);
+    tree.insert(6);
+    tree.insert(7);
+    tree.insert(8);
+    tree.delete(4);
+    tree.delete(3);
+    println!("{}", tree.count());
+    println!("tree prints---");
+    println!("{}", tree.print());
+    println!("treetree");
+    tree.inorder();
+    println!("{}", tree.height());
+    println!("{}", tree.isEmpty());
+    tree.delete(1);
+    tree.delete(2);
+    tree.delete(5);
+    tree.delete(6);
+    tree.delete(7);
+    tree.delete(8);
+    println!("comp");
+    println!("{}", tree.isEmpty());
+
+
+    println!("Hello, world!3512oui35r48q39u r80eweu894321809u43298132890342189u142389123u4");
     let mut root = AVLNode::new(1);
     root = AVLNode::insert(root.clone(), 2);
     root = AVLNode::insert(root.clone(), 3);
     root = AVLNode::insert(root.clone(), 4);
-    root = AVLNode::insert(root.clone(), 8);
-    root = AVLNode::insert(root.clone(), 7);
-    root = AVLNode::insert(root.clone(), 6);
     root = AVLNode::insert(root.clone(), 5);
-    println!("###count: {}", AVLNode::count(root.clone()));
-    AVLNode::inorder(root.clone());
-    let s = AVLNode::prettyPrint(root.clone());
-    println!("%$$A$A#A%A#$");
-    println!("{}", s);
-    // println!("{:#?}", root);
-    root = AVLNode::delete(root.clone(), 8);
-    root = AVLNode::delete(root.clone(), 7);
-    root = AVLNode::delete(root.clone(), 6);
-    root = AVLNode::delete(root.clone(), 5);
-    println!("###count: {}", AVLNode::count(root.clone()));
+    root = AVLNode::insert(root.clone(), 6);
+    root = AVLNode::insert(root.clone(), 7);
+    root = AVLNode::insert(root.clone(), 8);
+    // println!("###count: {}", AVLNode::count(root.clone()));
+    // AVLNode::inorder(root.clone());
+    // let s = AVLNode::prettyPrint(root.clone());
+    // println!("%$$A$A#A%A#$");
+    // println!("{}", s);
+    // // println!("{:#?}", root);
+    // root = AVLNode::delete(root.clone(), 8);
+    // root = AVLNode::delete(root.clone(), 7);
+    // root = AVLNode::delete(root.clone(), 6);
+    // root = AVLNode::delete(root.clone(), 5);
+    // println!("###count: {}", AVLNode::count(root.clone()));
     root = AVLNode::delete(root.clone(), 4);
-    root = AVLNode::delete(root.clone(), 3);
-    root = AVLNode::delete(root.clone(), 2);
-    root = AVLNode::delete(root.clone(), 1);
-    println!("{:#?}", root);
-    if root.is_none() {
-        println!("nice");
-    }
+    // root = AVLNode::delete(root.clone(), 3);
+    // root = AVLNode::delete(root.clone(), 2);
+    // root = AVLNode::delete(root.clone(), 4);
+    // println!("{:#?}", root);
+    // if root.is_none() {
+    //     println!("nice");
+    // }
 
     // AVLNode::insert(root, 1);
 }
