@@ -465,6 +465,15 @@ where
     fn insert(&mut self, key: T) {
         let mut insert_node = TreeNode::new(key);
 
+        // Checks if the key already exists
+        match self.find(key) {
+            None => {}
+            Some(_) => {
+                println!("{} already exists in the tree", key);
+                return;
+            }
+        };
+
         if self.root.is_none() {
             self.height += 1;
             insert_node.color = NodeColor::Black;
@@ -531,6 +540,605 @@ where
         }
     }
 
+    fn fix_delete(&mut self, node: &mut Child<T>, parent: &mut Child<T>) {
+        let mut other: Child<T>;
+        let mut node = match node {
+            None => None,
+            Some(ref n) => Some(Rc::clone(n)),
+        };
+        let mut parent = match parent {
+            None => None,
+            Some(ref p) => Some(Rc::clone(p)),
+        };
+        loop {
+            let root_key = match self.root {
+                None => break,
+                Some(ref r) => r.borrow().key,
+            };
+            let node_key = match node {
+                None => break,
+                Some(ref n) => n.borrow().key,
+            };
+            match node {
+                // exit conditon
+                None => break,
+                Some(ref n) => {
+                    if !(n.borrow().key != root_key && n.borrow().color == NodeColor::Black) {
+                        break;
+                    }
+                }
+            };
+
+            let mut is_left = false;
+            match parent {
+                None => break,
+                Some(ref p) => match p.borrow().left {
+                    None => break,
+                    Some(ref pl) => {
+                        if pl.borrow().key == node_key {
+                            other = match p.borrow().right {
+                                None => None,
+                                Some(ref pr) => Some(Rc::clone(pr)),
+                            };
+                            is_left = true;
+                        } else {
+                            other = match p.borrow().left {
+                                None => None,
+                                Some(ref pl) => Some(Rc::clone(pl)),
+                            };
+                        }
+                    }
+                },
+            }
+
+            if is_left {
+                let mut flag = false;
+                match other {
+                    None => break,
+                    Some(ref o) => {
+                        if o.borrow().color == NodeColor::Red {
+                            o.borrow_mut().color = NodeColor::Black;
+                            match parent {
+                                None => break,
+                                Some(ref p) => p.borrow_mut().color = NodeColor::Red,
+                            };
+                            match parent {
+                                None => {}
+                                Some(ref p) => self.left_rotation(&mut Some(Rc::clone(p))),
+                            };
+                            flag = true;
+                        }
+                    }
+                };
+                if flag {
+                    other = match parent {
+                        None => break,
+                        Some(ref p) => match p.borrow().right {
+                            None => break,
+                            Some(ref pr) => Some(Rc::clone(pr)),
+                        },
+                    };
+                }
+
+                let mut matches = false;
+                match other {
+                    None => break,
+                    Some(ref o) => {
+                        let mut other_left_color = match o.borrow().left {
+                            None => break,
+                            Some(ref ol) => {
+                                if ol.borrow().color == NodeColor::Black {
+                                    NodeColor::Black
+                                } else {
+                                    NodeColor::Red
+                                }
+                            }
+                        };
+                        let mut other_right_color = match o.borrow().right {
+                            None => break,
+                            Some(ref or) => {
+                                if or.borrow().color == NodeColor::Black {
+                                    NodeColor::Black
+                                } else {
+                                    NodeColor::Red
+                                }
+                            }
+                        };
+
+                        if other_left_color == NodeColor::Black
+                            && other_right_color == NodeColor::Black
+                        {
+                            o.borrow_mut().color = NodeColor::Red;
+                            node = match parent {
+                                None => None,
+                                Some(ref p) => Some(Rc::clone(p)),
+                            };
+                            parent = match node {
+                                None => None,
+                                Some(ref n) => match n.borrow().parent {
+                                    None => None,
+                                    Some(ref np) => match np.upgrade() {
+                                        None => None,
+                                        Some(ref npu) => Some(Rc::clone(npu)),
+                                    },
+                                },
+                            }
+                        } else {
+                            if other_right_color == NodeColor::Black {
+                                match o.borrow().left {
+                                    None => break,
+                                    Some(ref ol) => ol.borrow_mut().color = NodeColor::Black,
+                                };
+                                o.borrow_mut().color = NodeColor::Red;
+                                self.right_rotation(&mut Some(Rc::clone(o)));
+                                matches = true;
+                            }
+                        }
+                    }
+                }
+                if matches {
+                    other = match parent {
+                        None => break,
+                        Some(ref p) => match p.borrow().right {
+                            None => break,
+                            Some(ref pr) => Some(Rc::clone(pr)),
+                        },
+                    };
+                }
+                match other {
+                    None => break,
+                    Some(ref o) => match parent {
+                        None => break,
+                        Some(ref p) => {
+                            if p.borrow().color == NodeColor::Black {
+                                o.borrow_mut().color = NodeColor::Black;
+                            } else {
+                                o.borrow_mut().color = NodeColor::Red;
+                            }
+                            p.borrow_mut().color = NodeColor::Black;
+                            match o.borrow().right {
+                                None => break,
+                                Some(ref or) => or.borrow_mut().color = NodeColor::Black,
+                            }
+                            self.left_rotation(&mut Some(Rc::clone(p)));
+                            node = match self.root {
+                                None => None,
+                                Some(ref r) => Some(Rc::clone(r)),
+                            };
+                            break;
+                        }
+                    },
+                }
+            } else {
+                let mut flag = false;
+                match other {
+                    None => break,
+                    Some(ref o) => {
+                        if o.borrow().color == NodeColor::Red {
+                            o.borrow_mut().color = NodeColor::Black;
+                            match parent {
+                                None => break,
+                                Some(ref p) => p.borrow_mut().color = NodeColor::Red,
+                            };
+                            match parent {
+                                None => {}
+                                Some(ref p) => self.right_rotation(&mut Some(Rc::clone(p))),
+                            };
+                            flag = true;
+                        }
+                    }
+                };
+                if flag {
+                    other = match parent {
+                        None => break,
+                        Some(ref p) => match p.borrow().left {
+                            None => break,
+                            Some(ref pl) => Some(Rc::clone(pl)),
+                        },
+                    };
+                }
+                let mut matches = false;
+                match other {
+                    None => break,
+                    Some(ref o) => {
+                        let mut other_left_color = match o.borrow().left {
+                            None => break,
+                            Some(ref ol) => {
+                                if ol.borrow().color == NodeColor::Black {
+                                    NodeColor::Black
+                                } else {
+                                    NodeColor::Red
+                                }
+                            }
+                        };
+                        let mut other_right_color = match o.borrow().right {
+                            None => break,
+                            Some(ref or) => {
+                                if or.borrow().color == NodeColor::Black {
+                                    NodeColor::Black
+                                } else {
+                                    NodeColor::Red
+                                }
+                            }
+                        };
+
+                        if other_left_color == NodeColor::Black
+                            && other_right_color == NodeColor::Black
+                        {
+                            o.borrow_mut().color = NodeColor::Red;
+                            node = match parent {
+                                None => None,
+                                Some(ref p) => Some(Rc::clone(p)),
+                            };
+                            parent = match node {
+                                None => None,
+                                Some(ref n) => match n.borrow().parent {
+                                    None => None,
+                                    Some(ref np) => match np.upgrade() {
+                                        None => None,
+                                        Some(ref npu) => Some(Rc::clone(npu)),
+                                    },
+                                },
+                            }
+                        } else {
+                            if other_left_color == NodeColor::Black {
+                                match o.borrow().right {
+                                    None => break,
+                                    Some(ref or) => or.borrow_mut().color = NodeColor::Black,
+                                };
+                                o.borrow_mut().color = NodeColor::Red;
+                                self.left_rotation(&mut Some(Rc::clone(o)));
+                                matches = true;
+                            }
+                        }
+                    }
+                }
+                if matches {
+                    other = match parent {
+                        None => break,
+                        Some(ref p) => match p.borrow().left {
+                            None => break,
+                            Some(ref pl) => Some(Rc::clone(pl)),
+                        },
+                    };
+                }
+                match other {
+                    None => break,
+                    Some(ref o) => match parent {
+                        None => break,
+                        Some(ref p) => {
+                            if p.borrow().color == NodeColor::Black {
+                                o.borrow_mut().color = NodeColor::Black;
+                            } else {
+                                o.borrow_mut().color = NodeColor::Red;
+                            }
+                            p.borrow_mut().color = NodeColor::Black;
+                            match o.borrow().left {
+                                None => break,
+                                Some(ref ol) => ol.borrow_mut().color = NodeColor::Black,
+                            }
+                            self.right_rotation(&mut Some(Rc::clone(p)));
+                            node = match self.root {
+                                None => None,
+                                Some(ref r) => Some(Rc::clone(r)),
+                            };
+                            break;
+                        }
+                    },
+                }
+            }
+        }
+    }
+
+    fn delete(&mut self, key: T) {
+        fn min_node<T>(node: &Child<T>) -> Child<T> {
+            let mut temp = match node {
+                None => return None,
+                Some(ref n) => Some(Rc::clone(n)),
+            };
+            loop {
+                let mut temp_left = match temp {
+                    None => None,
+                    Some(ref t) => match t.borrow().left {
+                        None => None,
+                        Some(ref tl) => Some(Rc::clone(tl)),
+                    },
+                };
+                if temp_left.is_none() {
+                    break;
+                }
+                temp = temp_left;
+            }
+            return temp;
+        }
+
+        let node_to_delete = self.find(key);
+        let node_left = match node_to_delete {
+            None => return,
+            Some(ref n) => match n.borrow().left {
+                None => None,
+                Some(ref nl) => Some(Rc::clone(nl)),
+            },
+        };
+        let node_right = match node_to_delete {
+            None => return,
+            Some(ref n) => match n.borrow().right {
+                None => None,
+                Some(ref nr) => Some(Rc::clone(nr)),
+            },
+        };
+        let root_key = match self.root {
+            None => return,
+            Some(ref rc) => rc.borrow().key,
+        };
+        if !node_left.is_none() && !node_right.is_none() {
+            let replace = min_node(&node_right);
+            let node_key = match node_to_delete {
+                None => return,
+                Some(ref nc) => nc.borrow().key,
+            };
+
+            if node_key == root_key {
+                self.root = match replace {
+                    None => None,
+                    Some(ref r) => Some(Rc::clone(r)),
+                };
+            } else {
+                match node_to_delete {
+                    None => return,
+                    Some(ref n) => match n.borrow().parent {
+                        None => return,
+                        Some(ref np) => match np.upgrade() {
+                            None => return,
+                            Some(ref npu) => {
+                                let node_parent_left_key = match Rc::clone(npu).borrow().left {
+                                    None => return,
+                                    Some(ref nplk) => nplk.borrow().key,
+                                };
+                                if node_parent_left_key == node_key {
+                                    npu.borrow_mut().left = match replace {
+                                        None => None,
+                                        Some(ref r) => Some(Rc::clone(r)),
+                                    };
+                                } else {
+                                    npu.borrow_mut().right = match replace {
+                                        None => None,
+                                        Some(ref r) => Some(Rc::clone(r)),
+                                    };
+                                }
+                            }
+                        },
+                    },
+                }
+            }
+
+            let child = match replace {
+                None => return,
+                Some(ref r) => match r.borrow().right {
+                    None => None,
+                    Some(ref rr) => Some(Rc::clone(rr)),
+                },
+            };
+            let parent = match replace {
+                None => return,
+                Some(ref r) => match r.borrow().parent {
+                    None => None,
+                    Some(ref rr) => match rr.upgrade() {
+                        None => return,
+                        Some(ref rru) => Some(Rc::clone(rru)),
+                    },
+                },
+            };
+
+            let color = match replace {
+                None => return,
+                Some(ref r) => {
+                    if r.borrow().color == NodeColor::Black {
+                        NodeColor::Black
+                    } else {
+                        NodeColor::Red
+                    }
+                }
+            };
+
+            match parent {
+                None => {}
+                Some(ref p) => {
+                    if p.borrow().key == key {
+                        match replace {
+                            None => None,
+                            Some(ref r) => Some(Rc::clone(r)),
+                        };
+                    } else {
+                        if !child.is_none() {
+                            match child {
+                                None => {}
+                                Some(ref c) => {
+                                    c.borrow_mut().parent = Some(Rc::downgrade(&Rc::clone(p)))
+                                }
+                            }
+                        }
+                        p.borrow_mut().left = match child {
+                            None => None,
+                            Some(ref c) => Some(Rc::clone(c)),
+                        };
+                        match replace {
+                            None => {}
+                            Some(ref r) => match node_to_delete {
+                                None => return,
+                                Some(ref n) => match n.borrow().right {
+                                    None => r.borrow_mut().right = None,
+                                    Some(ref nr) => {
+                                        r.borrow_mut().right = Some(Rc::clone(nr));
+                                        nr.borrow_mut().parent = Some(Rc::downgrade(&Rc::clone(r)))
+                                    }
+                                },
+                            },
+                        }
+                    }
+                }
+            }
+
+            match replace {
+                None => return,
+                Some(ref r) => {
+                    match node_to_delete {
+                        None => {}
+                        Some(ref n) => {
+                            r.borrow_mut().parent = match n.borrow().parent {
+                                None => None,
+                                Some(ref np) => match np.upgrade() {
+                                    None => None,
+                                    Some(ref npu) => Some(Rc::downgrade(&Rc::clone(npu))),
+                                },
+                            };
+                            if n.borrow().color == NodeColor::Black {
+                                r.borrow_mut().color = NodeColor::Black;
+                            } else {
+                                r.borrow_mut().color = NodeColor::Red;
+                            }
+                            r.borrow_mut().left = match n.borrow().left {
+                                None => None,
+                                Some(ref nl) => Some(Rc::clone(nl)),
+                            };
+                            match n.borrow().left {
+                                None => {}
+                                Some(ref nl) => {
+                                    nl.borrow_mut().parent = Some(Rc::downgrade(&Rc::clone(r)))
+                                }
+                            }
+                        }
+                    };
+                }
+            };
+
+            if color == NodeColor::Black {
+                match child {
+                    None => return,
+                    Some(ref c) => match parent {
+                        None => return,
+                        Some(ref p) => {
+                            self.fix_delete(&mut Some(Rc::clone(c)), &mut Some(Rc::clone(p)))
+                        }
+                    },
+                }
+            }
+            return;
+        }
+
+        let child: Child<T>;
+        if !node_left.is_none() {
+            child = node_left;
+        } else {
+            child = node_right;
+        }
+        let parent = match node_to_delete {
+            None => None,
+            Some(ref n) => match n.borrow().parent {
+                None => None,
+                Some(ref np) => match np.upgrade() {
+                    None => None,
+                    Some(ref npu) => Some(Rc::clone(npu)),
+                },
+            },
+        };
+        let color = match node_to_delete {
+            None => return,
+            Some(ref n) => {
+                if n.borrow().color == NodeColor::Black {
+                    NodeColor::Black
+                } else {
+                    NodeColor::Red
+                }
+            }
+        };
+        if !child.is_none() {
+            match child {
+                None => {}
+                Some(ref c) => match parent {
+                    None => c.borrow_mut().parent = None,
+                    Some(ref p) => c.borrow_mut().parent = Some(Rc::downgrade(&Rc::clone(p))),
+                },
+            };
+        }
+        if root_key == key {
+            self.root = match child {
+                None => None,
+                Some(ref c) => Some(Rc::clone(c)),
+            };
+        } else {
+            match parent {
+                None => return,
+                Some(ref p) => {
+                    let mut found_key = false;
+                    let pl_key;
+                    match p.borrow().left {
+                        None => {}
+                        Some(ref pl) => {
+                            pl_key = pl.borrow().key;
+                            found_key = pl_key == key;
+                        }
+                    };
+                    if found_key {
+                        p.borrow_mut().left = match child {
+                            None => None,
+                            Some(ref c) => Some(Rc::clone(c)),
+                        };
+                    } else {
+                        p.borrow_mut().right = match child {
+                            None => None,
+                            Some(ref c) => Some(Rc::clone(c)),
+                        };
+                    }
+                }
+            }
+        }
+        if color == NodeColor::Black {
+            // DELETE FIXUP CHILD PARENT
+            match child {
+                None => return,
+                Some(ref c) => match parent {
+                    None => return,
+                    Some(ref p) => {
+                        self.fix_delete(&mut Some(Rc::clone(c)), &mut Some(Rc::clone(p)))
+                    }
+                },
+            }
+        }
+        return;
+    }
+
+    fn find(&mut self, key: T) -> Child<T> {
+        fn recurse<T: Ord + Copy>(node: &mut Child<T>, key: T) -> Child<T> {
+            if node.is_none() {
+                return None;
+            }
+            match node {
+                None => return None,
+                Some(ref n) => {
+                    let nkey = n.borrow().key;
+                    if nkey == key {
+                        return Some(Rc::clone(n));
+                    } else if nkey > key {
+                        match n.borrow().left {
+                            None => return None,
+                            Some(ref nl) => return recurse(&mut Some(Rc::clone(nl)), key),
+                        };
+                    } else {
+                        match n.borrow().right {
+                            None => return None,
+                            Some(ref nr) => return recurse(&mut Some(Rc::clone(nr)), key),
+                        };
+                    }
+                }
+            };
+        }
+        match self.root {
+            None => return None,
+            Some(ref r) => return recurse(&mut Some(Rc::clone(r)), key),
+        }
+    }
+
     fn count_leaves(&self) -> i32 {
         match self.root {
             None => 0,
@@ -567,6 +1175,13 @@ where
                 {
                     let mut sb = rc_sb.borrow_mut();
                     sb.push_str(n.key.clone().to_string().as_str());
+
+                    let color_string = match n.color {
+                        NodeColor::Red => "R",
+                        NodeColor::Black => "B",
+                    };
+
+                    sb.push_str(color_string);
                 }
 
                 let pointer_right = "└──";
@@ -609,6 +1224,13 @@ where
                     sb.push_str(padding);
                     sb.push_str(pointer);
                     sb.push_str(n.key.clone().to_string().as_str());
+
+                    let color_string = match n.color {
+                        NodeColor::Red => "R",
+                        NodeColor::Black => "B",
+                    };
+
+                    sb.push_str(color_string);
                 }
 
                 let mut psb = String::from(padding);
@@ -706,17 +1328,9 @@ fn main() {
 
     tree.insert(10);
     tree.insert(9);
-    tree.insert(8);
-    tree.insert(7);
-    tree.insert(6);
-    tree.insert(5);
-    tree.insert(4);
-    tree.insert(3);
-    tree.insert(11);
-    tree.insert(12);
-    tree.insert(13);
-    tree.insert(14);
-    tree.insert(15);
+    tree.insert(9);
+
+    tree.delete(3);
 
     println!("{}", tree.count_leaves());
     println!("The tree is empty: {}", tree.is_empty());
