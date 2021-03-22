@@ -1,4 +1,5 @@
 use std::cell::RefCell;
+use std::cmp::max;
 use std::fmt::{Debug, Display};
 use std::rc::{Rc, Weak};
 
@@ -1268,6 +1269,13 @@ where
             }
         }
     }
+
+    fn get_height(&self) -> i32 {
+        match self.root {
+            None => 1,
+            Some(ref root) => root.borrow().get_height(),
+        }
+    }
 }
 
 impl<T: Ord + Copy> TreeNode<T> {
@@ -1320,17 +1328,37 @@ impl<T: Ord + Copy> TreeNode<T> {
 
         node_values
     }
+
+    pub fn get_height(&self) -> i32 {
+        let left_height = match self.left {
+            None => 0,
+            Some(ref left) => left.borrow().get_height(),
+        };
+
+        let right_height = match self.right {
+            None => 0,
+            Some(ref right) => right.borrow().get_height(),
+        };
+
+        max(left_height, right_height) + 1
+    }
 }
 
 fn main() {
     let mut tree = RBTree::new();
 
-    tree.insert("a");
-    tree.insert("b");
-    tree.insert("c");
+    tree.insert(1);
+    tree.insert(2);
+    tree.insert(3);
+    tree.insert(4);
+    tree.insert(5);
+    tree.insert(6);
+    tree.insert(7);
+    tree.insert(8);
 
-    println!("{}", tree.count_leaves());
-    println!("The tree is empty: {}", tree.is_empty());
-    println!("{:?}", tree.inorder_traversal());
-    println!("{}", RBTree::pretty_print(tree.root));
+    println!("Tree Leaf Count: {}", tree.count_leaves());
+    println!("Tree Is Empty: {}", tree.is_empty());
+    println!("Tree Inorder Traversal: {:?}", tree.inorder_traversal());
+    println!("Tree Height: {}", tree.get_height());
+    println!("Tree Pretty Printed: \n{}", RBTree::pretty_print(tree.root));
 }
