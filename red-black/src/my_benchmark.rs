@@ -1,9 +1,9 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 
-mod main;
+mod rbt;
 
 fn create_tree(size: i32) {
-	let mut tree = main::RBTree::new();
+	let mut tree = rbt::RBTree::new();
 
 	for i in 0..size {
 		tree.insert(i);
