@@ -3,7 +3,7 @@ use std::fmt::{Debug, Display};
 use std::rc::{Rc, Weak};
 
 #[derive(Clone, Debug, PartialEq)]
-enum NodeColor {
+pub enum NodeColor {
     Red,
     Black,
 }
@@ -12,7 +12,7 @@ type Child<T> = Option<Rc<RefCell<TreeNode<T>>>>;
 type Parent<T> = Option<Weak<RefCell<TreeNode<T>>>>;
 
 #[derive(Debug, Clone)]
-struct TreeNode<T> {
+pub struct TreeNode<T> {
     pub color: NodeColor,
     pub key: T,
     pub parent: Parent<T>,
@@ -20,7 +20,7 @@ struct TreeNode<T> {
     right: Child<T>,
 }
 #[derive(Debug)]
-struct RBTree<T> {
+pub struct RBTree<T> {
     root: Child<T>,
     height: u64,
 }
@@ -29,7 +29,7 @@ impl<T> RBTree<T>
 where
     T: Ord + Copy + Display + Debug,
 {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             root: None,
             height: 0,
@@ -462,7 +462,7 @@ where
         }
     }
 
-    fn insert(&mut self, key: T) {
+    pub fn insert(&mut self, key: T) {
         let mut insert_node = TreeNode::new(key);
 
         // Checks if the key already exists
@@ -624,7 +624,7 @@ where
                 match other {
                     None => break,
                     Some(ref o) => {
-                        let mut other_left_color = match o.borrow().left {
+                        let other_left_color = match o.borrow().left {
                             None => break,
                             Some(ref ol) => {
                                 if ol.borrow().color == NodeColor::Black {
@@ -634,7 +634,7 @@ where
                                 }
                             }
                         };
-                        let mut other_right_color = match o.borrow().right {
+                        let other_right_color = match o.borrow().right {
                             None => break,
                             Some(ref or) => {
                                 if or.borrow().color == NodeColor::Black {
@@ -741,7 +741,7 @@ where
                 match other {
                     None => break,
                     Some(ref o) => {
-                        let mut other_left_color = match o.borrow().left {
+                        let other_left_color = match o.borrow().left {
                             None => break,
                             Some(ref ol) => {
                                 if ol.borrow().color == NodeColor::Black {
@@ -751,7 +751,7 @@ where
                                 }
                             }
                         };
-                        let mut other_right_color = match o.borrow().right {
+                        let other_right_color = match o.borrow().right {
                             None => break,
                             Some(ref or) => {
                                 if or.borrow().color == NodeColor::Black {
@@ -1108,7 +1108,7 @@ where
         return;
     }
 
-    fn find(&mut self, key: T) -> Child<T> {
+    pub fn find(&mut self, key: T) -> Child<T> {
         fn recurse<T: Ord + Copy>(node: &mut Child<T>, key: T) -> Child<T> {
             if node.is_none() {
                 return None;
@@ -1324,13 +1324,10 @@ impl<T: Ord + Copy> TreeNode<T> {
 
 fn main() {
     let mut tree = RBTree::new();
-    println!("The tree is empty: {}", tree.is_empty());
 
-    tree.insert(10);
-    tree.insert(9);
-    tree.insert(9);
-
-    tree.delete(3);
+    tree.insert("a");
+    tree.insert("b");
+    tree.insert("c");
 
     println!("{}", tree.count_leaves());
     println!("The tree is empty: {}", tree.is_empty());
