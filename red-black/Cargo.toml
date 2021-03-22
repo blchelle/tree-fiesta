@@ -1,5 +1,5 @@
 [package]
-name = "red-black"
+name = "rbt"
 version = "0.1.0"
 authors = ["Brock Chelle <Brocklchelle@gmail.com>"]
 edition = "2018"
