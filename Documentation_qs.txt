@@ -1,0 +1,20 @@
+Names: MingYang Mao, Brock Chelle, Andrew Chen.
+
+Q1. Red-black tree can balance itself, this is unlike a ordinary bst. In an ordinary bst, if we keep inserting nodes going from 0..n 
+they will keep pointing towards the right. This means if we want to check that node n exists, we would need to traverse the bst's n nodes.
+This is unlike a red-black tree that can balance itself to be a height of log(n). Thus the operations do not have a worst
+case time complexity of O(n) like a bst would have.
+
+Q3. Our system handles all errorneous conditions. We maintain nodes in the option class so that if nodes do not exist, they will return
+a None value. Thus, all errors are caught and not noticed by the user.
+
+Q4. Red-black tree and AVL tree both have the concept of balancing the tree. However, they do their balance with different conditions 
+and using different rotational conditions. Both the red-black tree and avl tree are bst and thus can be traversed in the same way, and their nodes can also
+be printed using the same dfs traversal pattern. They guarnetee log(n) operations for search, insert and delete.
+
+Q5. While there are some components that are tree-like in nature. 2-3-4 trees and B+ trees are too different for our implementation of both
+the AVL and RB trees. While we might be able to recycle general ideas, such as storing nodes in a vector instead right/left childs, the code would
+require extensive changes to allow for this.
+To design for future implementations, we could use the idea of vectors for children and build our implementation around vectors instead of static 
+variables.
+

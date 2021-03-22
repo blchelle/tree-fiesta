@@ -1,11 +1,11 @@
 use std::cell::RefCell;
+use std::cmp::max;
 use std::fmt::{Debug, Display};
+use std::io::{stdin, stdout, Write};
 use std::rc::{Rc, Weak};
-use std::env;
-use std::io;
 
 #[derive(Clone, Debug, PartialEq)]
-enum NodeColor {
+pub enum NodeColor {
     Red,
     Black,
 }
@@ -14,7 +14,7 @@ type Child<T> = Option<Rc<RefCell<TreeNode<T>>>>;
 type Parent<T> = Option<Weak<RefCell<TreeNode<T>>>>;
 
 #[derive(Debug, Clone)]
-struct TreeNode<T> {
+pub struct TreeNode<T> {
     pub color: NodeColor,
     pub key: T,
     pub parent: Parent<T>,
@@ -22,18 +22,20 @@ struct TreeNode<T> {
     right: Child<T>,
 }
 #[derive(Debug)]
-struct RBTree<T> {
+pub struct RBTree<T> {
     root: Child<T>,
+    height: u64,
 }
 
 impl<T> RBTree<T>
 where
     T: Ord + Copy + Display + Debug,
 {
+
     /**
      * Creates a new empty tree
     **/
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             root: None
         }
@@ -246,7 +248,7 @@ where
     /**
      * Checks and fixes property on tree
     **/
-    fn check_property(&mut self, node: &mut Child<T>) {
+    fn check_property1(&mut self, node: &mut Child<T>) {
         let current_node = node;
         loop {
             // Define node nad parent node
@@ -296,7 +298,6 @@ where
                     }
                 }
             };
-
 
             // Define left uncle and right uncle
             let grandparent_left = match grandparent {
@@ -488,7 +489,7 @@ where
     /**
      * Insert a key into the tree
     **/
-    fn insert(&mut self, key: T) {
+    pub fn insert(&mut self, key: T) {
         let mut insert_node = TreeNode::new(key);
 
         // Checks if the key already exists
@@ -550,11 +551,11 @@ where
                         if insert_node.key < y1.borrow().key {
                             let w = Rc::new(RefCell::new(insert_node));
                             y1.borrow_mut().left = Some(Rc::clone(&w));
-                            self.check_property(&mut Some(Rc::clone(&w)));
+                            self.check_property1(&mut Some(Rc::clone(&w)));
                         } else {
                             let w = Rc::new(RefCell::new(insert_node));
                             y1.borrow_mut().right = Some(Rc::clone(&w));
-                            self.check_property(&mut Some(Rc::clone(&w)));
+                            self.check_property1(&mut Some(Rc::clone(&w)));
                         }
                     }
                 }
@@ -658,13 +659,12 @@ where
                     };
                 }
 
-
                 let mut matches = false;
                 match other {
                     None => break,
                     Some(ref o) => {
                         // Right left color
-                        let mut other_left_color = match o.borrow().left {
+                        let other_left_color = match o.borrow().left {
                             None => break,
                             Some(ref ol) => {
                                 if ol.borrow().color == NodeColor::Black {
@@ -675,7 +675,7 @@ where
                             }
                         };
                         // Right right color
-                        let mut other_right_color = match o.borrow().right {
+                        let other_right_color = match o.borrow().right {
                             None => break,
                             Some(ref or) => {
                                 if or.borrow().color == NodeColor::Black {
@@ -792,7 +792,7 @@ where
                 match other {
                     None => break,
                     Some(ref o) => {
-                        let mut other_left_color = match o.borrow().left {
+                        let other_left_color = match o.borrow().left {
                             None => break,
                             Some(ref ol) => {
                                 if ol.borrow().color == NodeColor::Black {
@@ -802,7 +802,7 @@ where
                                 }
                             }
                         };
-                        let mut other_right_color = match o.borrow().right {
+                        let other_right_color = match o.borrow().right {
                             None => break,
                             Some(ref or) => {
                                 if or.borrow().color == NodeColor::Black {
@@ -1166,7 +1166,7 @@ where
     /**
      * Finds a node in the tree
     **/
-    fn find(&mut self, key: T) -> Child<T> {
+    pub fn find(&mut self, key: T) -> Child<T> {
         fn recurse<T: Ord + Copy>(node: &mut Child<T>, key: T) -> Child<T> {
             if node.is_none() {
                 return None;
@@ -1230,7 +1230,7 @@ where
     /**
         algorithmic idea drawn from https://www.baeldung.com/java-print-binary-tree-diagram
     */
-    fn pretty_print(root: &Child<T>) -> String {
+    fn pretty_print(root: Child<T>) -> String {
         match root {
             None => {
                 return "".to_string();
@@ -1335,6 +1335,12 @@ where
             }
         }
     }
+    fn get_height(&self) -> i32 {
+        match self.root {
+            None => 1,
+            Some(ref root) => root.borrow().get_height(),
+        }
+    }
 }
 
 impl<T: Ord + Copy> TreeNode<T> {
@@ -1387,8 +1393,86 @@ impl<T: Ord + Copy> TreeNode<T> {
 
         node_values
     }
+
+    pub fn get_height(&self) -> i32 {
+        let left_height = match self.left {
+            None => 0,
+            Some(ref left) => left.borrow().get_height(),
+        };
+
+        let right_height = match self.right {
+            None => 0,
+            Some(ref right) => right.borrow().get_height(),
+        };
+
+        max(left_height, right_height) + 1
+    }
 }
 
 fn main() {
+    let mut tree = RBTree::new();
 
+    loop {
+        let mut s = String::new();
+        print!("insert/delete/print/height/num_leaves/is_empty/inorder: ");
+        stdout().flush();
+        stdin().read_line(&mut s).expect("Incorrect Command");
+
+        s = String::from(s.trim());
+
+        let mut input_iter = s.split(" ");
+        let input = input_iter.next().unwrap();
+
+        match input {
+            "insert" => {
+                let val = input_iter.next();
+
+                if val.is_none() {
+                    println!("\nInvalid Command, try again\n");
+                    continue;
+                }
+                let val_int: i32 = val.unwrap().parse().unwrap();
+                tree.insert(val_int);
+            }
+            "height" => {
+                println!("\nTree Height: {}\n", tree.get_height());
+            }
+            "num_leaves" => {
+                println!("\nNumber of leaves: {}\n", tree.count_leaves());
+            }
+            "is_empty" => {
+                println!(
+                    "\nTree is {}empty\n",
+                    if tree.is_empty() { "" } else { "not " }
+                );
+            }
+            "inorder" => {
+                println!("\nInorder Traversal {:?}\n", tree.inorder_traversal());
+            }
+            "delete" => {
+                let val = input_iter.next();
+
+                if val.is_none() {
+                    println!("Invalid Command, try again");
+                    continue;
+                }
+
+                let val_int: i32 = val.unwrap().parse().unwrap();
+
+                tree.delete(val_int);
+            }
+            "print" => {
+                println!(
+                    "Tree Pretty Printed: \n{}",
+                    RBTree::pretty_print(tree.root.clone())
+                );
+            }
+            "close" => {
+                return;
+            }
+            _ => {
+                println!("\nInvalid Command\n");
+            }
+        };
+    }
 }
