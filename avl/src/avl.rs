@@ -7,7 +7,7 @@ type Tree<T> = Rc<RefCell<AVLNode<T>>>;
 type AVLTree<T> = Option<Tree<T>>;
 
 #[derive(Clone, Debug)]
-struct AVLNode<T> { // actual node
+pub struct AVLNode<T> { // actual node
     pub key: T,
     height: i32,
     left: AVLTree<T>,
@@ -17,7 +17,7 @@ struct AVLNode<T> { // actual node
 // tree object that allows calls to self
 // easier usage for user and abstracts the nodes away from tree
 #[derive(Clone, Debug)]
-struct AVL<T: Ord+Copy+Display> {
+pub struct AVL<T: Ord+Copy+Display> {
     root: AVLTree<T>
 }
 
@@ -43,7 +43,7 @@ impl<T: Ord+Copy+Display> AVLNode<T> {
     }
 
     // gets height of tree, 0 if node doesn't exist
-    fn height(node: AVLTree<T>) -> i32 {
+    pub fn height(node: AVLTree<T>) -> i32 {
         return match node {
             None => {
                 0
@@ -55,7 +55,7 @@ impl<T: Ord+Copy+Display> AVLNode<T> {
     }
 
     // gets the min key of tree rooted at node given
-    fn getMinVal(node: AVLTree<T>) -> T {
+    pub fn getMinVal(node: AVLTree<T>) -> T {
         let n_unwrap = node.unwrap();
         let n_bor = n_unwrap.borrow();
         return if n_bor.right.is_some() {
@@ -66,7 +66,7 @@ impl<T: Ord+Copy+Display> AVLNode<T> {
     }
 
     // calculates the avl balance algo. returns the new root
-    fn getBalance(node: AVLTree<T>) -> i32 {
+    pub fn getBalance(node: AVLTree<T>) -> i32 {
         match node {
             None => {
                 0
@@ -79,7 +79,7 @@ impl<T: Ord+Copy+Display> AVLNode<T> {
     }
 
     // insert treating self as the root
-    fn insert(node: AVLTree<T>, data : T) -> AVLTree<T> {
+    pub fn insert(node: AVLTree<T>, data : T) -> AVLTree<T> {
         if node.is_none() { // no node exist thus insert one here
             return Self::new(data);
         }
@@ -150,7 +150,7 @@ impl<T: Ord+Copy+Display> AVLNode<T> {
                 Self::rightRotate(rc_node)
             }
             RotationCase::RL => {
-                let tmp = Self::leftRotate(rc_node.borrow().right.clone().unwrap());
+                let tmp = Self::rightRotate(rc_node.borrow().right.clone().unwrap());
                 rc_node.borrow_mut().right = tmp;
                 Self::leftRotate(rc_node)
             }
@@ -161,7 +161,7 @@ impl<T: Ord+Copy+Display> AVLNode<T> {
     }
 
     // algo for right rotations
-    fn rightRotate(node: Tree<T>) -> AVLTree<T> {
+    pub fn rightRotate(node: Tree<T>) -> AVLTree<T> {
         let mut cur = node.borrow_mut();
         let l = cur.left.clone();
         let l_unwrap = l.clone().unwrap();
@@ -181,8 +181,7 @@ impl<T: Ord+Copy+Display> AVLNode<T> {
     }
 
     // algo for left rotatons
-    fn leftRotate(node: Tree<T>) -> AVLTree<T> {
-        println!("LR");
+    pub fn leftRotate(node: Tree<T>) -> AVLTree<T> {
         let mut cur = node.borrow_mut(); // x
         let r = cur.right.clone(); // x .right (y)
         let r_unwrap = r.clone().unwrap();
@@ -201,8 +200,27 @@ impl<T: Ord+Copy+Display> AVLNode<T> {
         return r;
     }
 
+    // returns bool if node exists
+    pub fn search(root: AVLTree<T>, data : T) -> bool {
+        return match root {
+            None => {
+               false
+            },
+            Some(node) => {
+                let n = node.borrow();
+                if data < n.key {
+                    return Self::search(n.left.clone(), data);
+                } else if data > n.key {
+                    return Self::search(n.right.clone(), data);
+                } else {
+                    true
+                }
+            }
+        }
+    }
+
     // deletes starting at root returns new root
-    fn delete(root: AVLTree<T>, data : T) -> AVLTree<T> {
+    pub fn delete(root: AVLTree<T>, data : T) -> AVLTree<T> {
         if root.is_none() { // no deletion cases
             return root
         }
@@ -247,18 +265,21 @@ impl<T: Ord+Copy+Display> AVLNode<T> {
                 }
             }
 
-            rem_mut.height = 1 + Self::height(rem_mut.left.clone()).max(Self::height(rem_mut.right.clone()));
+            // rem_node shouldn't be none but if it is just return no root
+            if rem_node.is_none() {
+                println!("the impossible happened");
+                return rem_node;
+            }
 
+            rem_mut.height = 1 + Self::height(rem_mut.left.clone()).max(Self::height(rem_mut.right.clone()));
             // get balancing conditions
             let bal = Self::height(rem_mut.left.clone()) - Self::height(rem_mut.right.clone());
             let rbal = Self::getBalance(rem_mut.right.clone());
             let lbal = Self::getBalance(rem_mut.left.clone());
 
-            println!("balance {}", bal);
-
-            if (bal > 1) && (lbal >= 0) {
+            if (bal > 1) && (lbal >= 0) {   // ll
                 rcase = RotationCase::LL;
-            } else if (bal < -1) && (rbal <= 0) {
+            } else if (bal < -1) && (rbal <= 0) { // rr
                 rcase = RotationCase::RR;
             } else if (bal > 1) && (lbal < 0) {
                 rcase = RotationCase::LR;
@@ -267,11 +288,6 @@ impl<T: Ord+Copy+Display> AVLNode<T> {
             } else {
                 rcase = RotationCase::Nil;
             }
-        }
-
-        // rem_node shouldn't be none but if it is just return no root
-        if rem_node.is_none() {
-            return rem_node;
         }
 
         let rem_unwrap = rem_node.clone().unwrap();
@@ -290,7 +306,7 @@ impl<T: Ord+Copy+Display> AVLNode<T> {
                 Self::rightRotate(rem_unwrap)
             }
             RotationCase::RL => {
-                let tmp = Self::leftRotate(rem_unwrap.borrow().right.clone().unwrap());
+                let tmp = Self::rightRotate(rem_unwrap.borrow().right.clone().unwrap());
                 rem_unwrap.borrow_mut().right = tmp;
                 Self::leftRotate(rem_unwrap)
             }
@@ -301,7 +317,7 @@ impl<T: Ord+Copy+Display> AVLNode<T> {
     }
 
     // counts nodes rooted at root
-    fn count(root: AVLTree<T>) -> i32 {
+    pub fn count(root: AVLTree<T>) -> i32 {
         return match root {
             None => {
                 0
@@ -314,7 +330,7 @@ impl<T: Ord+Copy+Display> AVLNode<T> {
     }
 
     // print inorder traversal
-    fn inorder(root: AVLTree<T>) {
+    pub fn inorder(root: AVLTree<T>) {
         match root {
             None => {}
             Some(node) => {
@@ -327,7 +343,7 @@ impl<T: Ord+Copy+Display> AVLNode<T> {
     }
 
     // computes if empty
-    fn isEmpty(root: AVLTree<T>) -> bool {
+    pub fn isEmpty(root: AVLTree<T>) -> bool {
         match root {
             None => {
                 true
@@ -341,7 +357,7 @@ impl<T: Ord+Copy+Display> AVLNode<T> {
     /**
         algorithmic idea drawn from https://www.baeldung.com/java-print-binary-tree-diagram
     */
-    fn prettyPrint(root: AVLTree<T>) -> String {
+    pub fn prettyPrint(root: AVLTree<T>) -> String {
         return match root {
             None => {
                 "".to_string()
@@ -363,8 +379,9 @@ impl<T: Ord+Copy+Display> AVLNode<T> {
                     pointerLeft = "├──";
                 }
                 // let pointLeft =
-                Self::prettyPrintHelper(rc_sb.clone(), "", pointerLeft, n.left.clone(), n.right.is_some());
                 Self::prettyPrintHelper(rc_sb.clone(), "", pointerRight, n.right.clone(), false);
+                Self::prettyPrintHelper(rc_sb.clone(), "", pointerLeft, n.left.clone(), n.right.is_some());
+                // Self::prettyPrintHelper(rc_sb.clone(), "", pointerRight, n.right.clone(), false);
 
                 rc_sb.clone().borrow_mut().to_string()
             }
@@ -372,7 +389,7 @@ impl<T: Ord+Copy+Display> AVLNode<T> {
     }
 
     // helpers the pretty printer draw recursively
-    fn prettyPrintHelper(rc_sb : Rc<RefCell<String>>, padding : &str, pointer : &str, node : AVLTree<T>, hasRight : bool) {
+    pub fn prettyPrintHelper(rc_sb : Rc<RefCell<String>>, padding : &str, pointer : &str, node : AVLTree<T>, hasRight : bool) {
         match node {
             None => {}
             Some(cur) => {
@@ -443,5 +460,9 @@ impl<T: Ord+Copy+Display> AVL<T> {
 
     pub fn print(&self) -> String {
         AVLNode::prettyPrint(self.root.clone())
+    }
+
+    pub fn search(&self, data : T) -> bool {
+        AVLNode::search(self.root.clone(), data)
     }
 }
