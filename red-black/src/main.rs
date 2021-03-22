@@ -31,13 +31,19 @@ impl<T> RBTree<T>
 where
     T: Ord + Copy + Display + Debug,
 {
+
+    /**
+     * Creates a new empty tree
+    **/
     pub fn new() -> Self {
         Self {
-            root: None,
-            height: 0,
+            root: None
         }
     }
 
+    /**
+     * Right rotates the on the node specified
+    **/
     fn right_rotation(&mut self, node: &mut Child<T>) {
         let node = match node {
             None => panic!("Rotation node in 'right_rotation' is None..."),
@@ -137,6 +143,9 @@ where
         }
     }
 
+    /**
+     * Left rotate on node
+    **/
     fn left_rotation(&mut self, node: &mut Child<T>) {
         let node = match node {
             None => panic!("Rotation node in 'right_rotation' is None..."),
@@ -236,9 +245,13 @@ where
         }
     }
 
+    /**
+     * Checks and fixes property on tree
+    **/
     fn check_property1(&mut self, node: &mut Child<T>) {
         let current_node = node;
         loop {
+            // Define node nad parent node
             let node = match current_node {
                 None => None,
                 Some(ref n) => Some(Rc::clone(n)),
@@ -253,9 +266,13 @@ where
                     },
                 },
             };
+
+            // Breaking condition. If parent is none, then exit
             if parent.is_none() {
                 return;
             }
+
+            // Define grandparent
             let grandparent: Child<T> = match parent {
                 None => None,
                 Some(ref gp) => match gp.borrow().parent {
@@ -266,6 +283,8 @@ where
                     },
                 },
             };
+
+            // Breaking condition if grandparent is none
             if grandparent.is_none() {
                 return;
             }
@@ -273,12 +292,14 @@ where
             match parent {
                 None => break,
                 Some(ref p) => {
+                    // Breaking condition if parent is not red
                     if p.borrow().color != NodeColor::Red {
                         break;
                     }
                 }
             };
 
+            // Define left uncle and right uncle
             let grandparent_left = match grandparent {
                 None => None,
                 Some(ref gpl) => match gpl.borrow().left {
@@ -294,6 +315,7 @@ where
                 },
             };
 
+            // Determine which is the right uncle
             let mut key_equal = false;
             match parent {
                 None => return,
@@ -307,7 +329,7 @@ where
                 },
             };
 
-            if key_equal {
+            if key_equal { // Uncle is right grandparent
                 let uncle = grandparent_right;
                 // Case 1
                 match uncle {
@@ -383,7 +405,7 @@ where
                     None => {}
                     Some(ref gp) => self.right_rotation(&mut Some(Rc::clone(gp))),
                 }
-            } else {
+            } else {  // uncle is left grandparent
                 let uncle = grandparent_left;
                 // Case 1
                 match uncle {
@@ -464,6 +486,9 @@ where
         }
     }
 
+    /**
+     * Insert a key into the tree
+    **/
     pub fn insert(&mut self, key: T) {
         let mut insert_node = TreeNode::new(key);
 
@@ -476,8 +501,8 @@ where
             }
         };
 
+        // If tree is empty
         if self.root.is_none() {
-            self.height += 1;
             insert_node.color = NodeColor::Black;
             self.root = Some(Rc::new(RefCell::new(insert_node)));
         } else {
@@ -487,6 +512,7 @@ where
                 Some(ref r) => Some(Rc::clone(r)),
             };
 
+            // Determine where to insert the node
             while !x.is_none() {
                 y = match x {
                     None => None,
@@ -518,6 +544,7 @@ where
             if y.is_none() {
                 self.root = Some(Rc::new(RefCell::new(insert_node)));
             } else {
+                // Insert and check propery
                 match y {
                     None => panic!("?"),
                     Some(ref y1) => {
@@ -534,7 +561,7 @@ where
                 }
             }
 
-            // insert(&mut self.root, insert_node);
+            // Make sure root is black
             match self.root {
                 None => {}
                 Some(ref r) => r.borrow_mut().color = NodeColor::Black,
@@ -542,6 +569,10 @@ where
         }
     }
 
+
+    /**
+     * Fixes tree after deletion
+    **/
     fn fix_delete(&mut self, node: &mut Child<T>, parent: &mut Child<T>) {
         let mut other: Child<T>;
         let mut node = match node {
@@ -593,11 +624,16 @@ where
                 },
             }
 
+            // If node is left child of parent
             if is_left {
                 let mut flag = false;
                 match other {
                     None => break,
                     Some(ref o) => {
+                        // If right child of parent is red
+                        // Set color to black
+                        // Set parent color to red
+                        // Left rotate on parent
                         if o.borrow().color == NodeColor::Red {
                             o.borrow_mut().color = NodeColor::Black;
                             match parent {
@@ -613,6 +649,7 @@ where
                     }
                 };
                 if flag {
+                    // reassign right child
                     other = match parent {
                         None => break,
                         Some(ref p) => match p.borrow().right {
@@ -626,6 +663,7 @@ where
                 match other {
                     None => break,
                     Some(ref o) => {
+                        // Right left color
                         let other_left_color = match o.borrow().left {
                             None => break,
                             Some(ref ol) => {
@@ -636,6 +674,7 @@ where
                                 }
                             }
                         };
+                        // Right right color
                         let other_right_color = match o.borrow().right {
                             None => break,
                             Some(ref or) => {
@@ -647,6 +686,10 @@ where
                             }
                         };
 
+                        // If both children are black
+                        // Set parent to red
+                        // Set node to parent
+                        // Set parent to node parent
                         if other_left_color == NodeColor::Black
                             && other_right_color == NodeColor::Black
                         {
@@ -666,6 +709,10 @@ where
                                 },
                             }
                         } else {
+                            // If right is black
+                            // Set left to black 
+                            // Set parent to red
+                            // right rotate
                             if other_right_color == NodeColor::Black {
                                 match o.borrow().left {
                                     None => break,
@@ -678,6 +725,7 @@ where
                         }
                     }
                 }
+                // Reassign node
                 if matches {
                     other = match parent {
                         None => break,
@@ -687,6 +735,7 @@ where
                         },
                     };
                 }
+
                 match other {
                     None => break,
                     Some(ref o) => match parent {
@@ -832,6 +881,9 @@ where
         }
     }
 
+    /**
+     * Deletes a node from the tree
+    **/
     fn delete(&mut self, key: T) {
         fn min_node<T>(node: &Child<T>) -> Child<T> {
             let mut temp = match node {
@@ -1110,6 +1162,10 @@ where
         return;
     }
 
+
+    /**
+     * Finds a node in the tree
+    **/
     pub fn find(&mut self, key: T) -> Child<T> {
         fn recurse<T: Ord + Copy>(node: &mut Child<T>, key: T) -> Child<T> {
             if node.is_none() {
@@ -1141,6 +1197,9 @@ where
         }
     }
 
+    /**
+     * Counts number of leaf nodes
+    **/
     fn count_leaves(&self) -> i32 {
         match self.root {
             None => 0,
@@ -1148,6 +1207,9 @@ where
         }
     }
 
+    /**
+     * Returns if the tree is empty or not
+    **/
     fn is_empty(&self) -> bool {
         match self.root {
             None => true,
@@ -1155,6 +1217,9 @@ where
         }
     }
 
+    /**
+     * Returns a inorder vector of the nodes
+    **/
     fn inorder_traversal(&self) -> Vec<T> {
         match self.root {
             None => vec![],
@@ -1270,7 +1335,6 @@ where
             }
         }
     }
-
     fn get_height(&self) -> i32 {
         match self.root {
             None => 1,
