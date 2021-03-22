@@ -24,7 +24,6 @@ pub struct TreeNode<T> {
 #[derive(Debug)]
 pub struct RBTree<T> {
     root: Child<T>,
-    height: u64,
 }
 
 impl<T> RBTree<T>
@@ -248,7 +247,7 @@ where
     /**
      * Checks and fixes property on tree
     **/
-    fn check_property1(&mut self, node: &mut Child<T>) {
+    fn check_property(&mut self, node: &mut Child<T>) {
         let current_node = node;
         loop {
             // Define node nad parent node
@@ -551,11 +550,11 @@ where
                         if insert_node.key < y1.borrow().key {
                             let w = Rc::new(RefCell::new(insert_node));
                             y1.borrow_mut().left = Some(Rc::clone(&w));
-                            self.check_property1(&mut Some(Rc::clone(&w)));
+                            self.check_property(&mut Some(Rc::clone(&w)));
                         } else {
                             let w = Rc::new(RefCell::new(insert_node));
                             y1.borrow_mut().right = Some(Rc::clone(&w));
-                            self.check_property1(&mut Some(Rc::clone(&w)));
+                            self.check_property(&mut Some(Rc::clone(&w)));
                         }
                     }
                 }
